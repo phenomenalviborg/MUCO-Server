@@ -30,6 +30,7 @@ class Server
         BroadcastChatMessage,
         BroadcastBytes,
         ClientDisconnected,
+        AssignClientId,
     }
 
     int id_counter = 0;
@@ -51,6 +52,14 @@ class Server
                 TcpClient tcpClient = listener.AcceptTcpClient();
                 ClientInfo client = new ClientInfo(id_counter++, tcpClient);
                 clients.Add(client);
+
+                var data = new List<byte>();
+                data.AddRange(Serialize.SerializeInt((int)ServerToClientMessageType.AssignClientId));
+                data.AddRange(Serialize.SerializeInt(client.id));
+                BroadcastMessage(data.ToArray());
+                var stream = tcpClient.GetStream();
+                Message.SendMessage(stream, data.ToArray());
+
                 Console.WriteLine("Client accepted: " + client.id);
             }
             
