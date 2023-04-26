@@ -78,6 +78,11 @@ class Server
                     Console.WriteLine("Client " +  client.id + ": disconnected");
                     client.tcpClient?.Close();
                     clients.RemoveAt(client_index);
+
+                    var data = new List<byte>();
+                    data.AddRange(Serialize.SerializeInt((int)ServerToClientMessageType.ClientDisconnected));
+                    data.AddRange(Serialize.SerializeInt(client.id));
+                    BroadcastMessage(data.ToArray());
                 }
             }
 
@@ -116,6 +121,11 @@ class Server
                 Console.WriteLine("Client " +  clientId + ": disconnected");
                 clientInfo.tcpClient?.Close();
                 clients.RemoveAt(client_index);
+
+                var data = new List<byte>();
+                data.AddRange(Serialize.SerializeInt((int)ServerToClientMessageType.ClientDisconnected));
+                data.AddRange(Serialize.SerializeInt(clientInfo.id));
+                BroadcastMessage(data.ToArray());
                 break;
             }
             case ClientToServerMessageType.BroadcastChatMessage:
