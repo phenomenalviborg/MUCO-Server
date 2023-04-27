@@ -2,15 +2,17 @@ using System.Diagnostics.CodeAnalysis;
 using System.Net.Sockets;
 using System.Text;
 
-class ClientInfo
+class Client
 {
     public int id;
-    public TcpClient tcpClient;
+    public TcpClient tcp;
+    public List<byte> buffer;
 
-    public ClientInfo(int id, [DisallowNull]TcpClient tcpClient)
+    public Client(int id, [DisallowNull]TcpClient tcpClient)
     {
         this.id = id;
-        this.tcpClient = tcpClient;
+        this.tcp = tcpClient;
+        this.buffer = new List<byte>();
     }
 }
 
@@ -35,8 +37,8 @@ class Server
 
     int id_counter = 0;
 
-    List<ClientInfo> clients = new List<ClientInfo>();
     Queue<(int, byte[])> messages = new Queue<(int, byte[])>();
+    List<Client> clients = new List<Client>();
 
     public void Run()
     {
@@ -45,12 +47,14 @@ class Server
         TcpListener listener = new TcpListener(System.Net.IPAddress.Any, 1302);
         listener.Start();
 
+        var generalBuffer = new byte[1024];
+
         while(true)
         {
             while (listener.Pending())
             {
                 TcpClient tcpClient = listener.AcceptTcpClient();
-                ClientInfo client = new ClientInfo(id_counter++, tcpClient);
+                Client client = new Client(id_counter++, tcpClient);
                 clients.Add(client);
 
                 var data = new List<byte>();
@@ -69,29 +73,45 @@ class Server
                 
                 try
                 {
-                    NetworkStream stream = client.tcpClient.GetStream();
-                    if (stream.DataAvailable)
+                    NetworkStream stream = client.tcp.GetStream();
+                    while (stream.DataAvailable)
                     {
-                        byte[] buffer = new byte[0];
-                        Message.ReceiveMessage(stream, ref buffer);
-                        messages.Enqueue((client.id, buffer));
-                        client_index++;
+                        var recv = stream.Read(generalBuffer, 0, generalBuffer.Length);
+                        for (int i = 0; i < recv; i++)
+                        {
+                            client.buffer.Add(generalBuffer[i]);
+                        }
                     }
-                    else
-                    {
-                        client_index++;
-                    }
+                    client_index++;
                 }
                 catch (Exception)
                 {
                     Console.WriteLine("Client " +  client.id + ": disconnected");
-                    client.tcpClient?.Close();
+                    client.tcp?.Close();
                     clients.RemoveAt(client_index);
 
                     var data = new List<byte>();
                     data.AddRange(Serialize.SerializeInt((int)ServerToClientMessageType.ClientDisconnected));
                     data.AddRange(Serialize.SerializeInt(client.id));
                     BroadcastMessage(data.ToArray());
+                }
+            }
+
+            for (int client_index = 0; client_index < clients.Count; client_index++)
+            {
+                var client = clients[client_index];
+                while (client.buffer.Count > 4)
+                {
+                    var length = Serialize.DeserializeInt(client.buffer.ToArray());
+                    if (client.buffer.Count < length + 4)
+                        break;
+                    
+                    var message = new byte[length];
+                    Array.Copy(client.buffer.ToArray(), 4, message, 0, length);
+
+                    client.buffer.RemoveRange(0, length + 4);
+
+                    messages.Enqueue((client.id, message));
                 }
             }
 
@@ -128,7 +148,7 @@ class Server
             case ClientToServerMessageType.Disconnect:
             {
                 Console.WriteLine("Client " +  clientId + ": disconnected");
-                clientInfo.tcpClient?.Close();
+                clientInfo.tcp?.Close();
                 clients.RemoveAt(client_index);
 
                 var data = new List<byte>();
@@ -179,7 +199,7 @@ class Server
         {
             try
             {
-                var stream = client.tcpClient.GetStream();
+                var stream = client.tcp.GetStream();
                 Message.SendMessage(stream, data);
             }
             catch
@@ -197,7 +217,7 @@ class Server
                 continue;
             try
             {
-                var stream = client.tcpClient.GetStream();
+                var stream = client.tcp.GetStream();
                 Message.SendMessage(stream, data);
             }
             catch
