@@ -1,5 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Sockets;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 
 class Client
@@ -16,29 +18,32 @@ class Client
     }
 }
 
+enum ClientToServerMessageType
+{
+    Disconnect,
+    BroadcastChatMessage,
+    BroadcastBytesAll,
+    BroadcastBytesOther,
+    StoreData,
+    RetrieveData,
+}
+
+enum ServerToClientMessageType
+{
+    BroadcastChatMessage,
+    BroadcastBytes,
+    ClientDisconnected,
+    AssignClientId,
+    Data,
+}
+
 class Server
 {
-    
-    enum ClientToServerMessageType
-    {
-        Disconnect,
-        BroadcastChatMessage,
-        BroadcastBytesAll,
-        BroadcastBytesOther,
-    }
-
-    enum ServerToClientMessageType
-    {
-        BroadcastChatMessage,
-        BroadcastBytes,
-        ClientDisconnected,
-        AssignClientId,
-    }
-
     int id_counter = 0;
 
     Queue<(int, byte[])> messages = new Queue<(int, byte[])>();
     List<Client> clients = new List<Client>();
+    Dictionary<string, byte[]> dataStore = new Dictionary<string, byte[]>();
 
     public void Run()
     {
@@ -187,6 +192,33 @@ class Server
                 BroadcastMessageOther(data.ToArray(), clientId);
                 break;
             }
+            case ClientToServerMessageType.StoreData:
+            {
+                var stringLength = Serialize.DeserializeInt(restBuffer);
+                var stringBytes = new byte[stringLength];
+                var dataBytes = new byte[restBuffer.Length - 4 - stringLength];
+                Array.Copy(restBuffer, 4, stringBytes, 0, stringLength);
+                Array.Copy(restBuffer, 4 + stringLength, dataBytes, 0, restBuffer.Length - 4 - stringLength);
+                string label = Encoding.UTF8.GetString(stringBytes, 0, stringBytes.Length);
+                dataStore[label] = dataBytes;
+                break;
+            }
+            case ClientToServerMessageType.RetrieveData:
+            {
+                string label = Encoding.UTF8.GetString(restBuffer, 0, restBuffer.Length);
+                byte[] userDataBytes = dataStore[label];
+
+                var labelBytes = Encoding.ASCII.GetBytes(label);
+
+                var data = new List<byte>();
+                data.AddRange(Serialize.SerializeInt((int)ClientToServerMessageType.StoreData));
+                data.AddRange(Serialize.SerializeInt(labelBytes.Length));
+                data.AddRange(labelBytes);
+                data.AddRange(userDataBytes);
+
+                SendMessageClient(data.ToArray(), clientInfo);
+                break;
+            }
             default:
                 Console.WriteLine("Unhandeled message type: " + messageType);
                 break;
@@ -197,15 +229,7 @@ class Server
     {
         foreach(var client in clients)
         {
-            try
-            {
-                var stream = client.tcp.GetStream();
-                Message.SendMessage(stream, data);
-            }
-            catch
-            {
-                Console.WriteLine("Could not send message to client: " + client.id);
-            }
+            SendMessageClient(data, client);
         }
     }
 
@@ -215,15 +239,20 @@ class Server
         {
             if (client.id == id)
                 continue;
-            try
-            {
-                var stream = client.tcp.GetStream();
-                Message.SendMessage(stream, data);
-            }
-            catch
-            {
-                Console.WriteLine("Could not send message to client: " + client.id);
-            }
+            SendMessageClient(data, client);
+        }
+    }
+
+    void SendMessageClient(byte[] data, Client client)
+    {
+        try
+        {
+            var stream = client.tcp.GetStream();
+            Message.SendMessage(stream, data);
+        }
+        catch
+        {
+            Console.WriteLine("Could not send message to client: " + client.id);
         }
     }
 }
