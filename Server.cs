@@ -206,17 +206,17 @@ class Server
             case ClientToServerMessageType.RetrieveData:
             {
                 string label = Encoding.UTF8.GetString(restBuffer, 0, restBuffer.Length);
-                byte[] userDataBytes = dataStore[label];
-
-                var labelBytes = Encoding.ASCII.GetBytes(label);
-
-                var data = new List<byte>();
-                data.AddRange(Serialize.SerializeInt((int)ClientToServerMessageType.StoreData));
-                data.AddRange(Serialize.SerializeInt(labelBytes.Length));
-                data.AddRange(labelBytes);
-                data.AddRange(userDataBytes);
-
-                SendMessageClient(data.ToArray(), clientInfo);
+                if (dataStore.ContainsKey(label))
+                {
+                    byte[] userDataBytes = dataStore[label];
+                    var labelBytes = Encoding.ASCII.GetBytes(label);
+                    var data = new List<byte>();
+                    data.AddRange(Serialize.SerializeInt((int)ClientToServerMessageType.StoreData));
+                    data.AddRange(Serialize.SerializeInt(labelBytes.Length));
+                    data.AddRange(labelBytes);
+                    data.AddRange(userDataBytes);
+                    SendMessageClient(data.ToArray(), clientInfo);
+                }
                 break;
             }
             default:
