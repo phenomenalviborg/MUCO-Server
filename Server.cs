@@ -1,7 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Sockets;
-using System.Runtime.Serialization;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 
 class Client
@@ -30,10 +28,11 @@ enum ClientToServerMessageType
 
 enum ServerToClientMessageType
 {
+    AssignClientId,
+    ClientConnected,
+    ClientDisconnected,
     BroadcastChatMessage,
     BroadcastBytes,
-    ClientDisconnected,
-    AssignClientId,
     Data,
 }
 
@@ -62,13 +61,20 @@ class Server
                 Client client = new Client(id_counter++, tcpClient);
                 clients.Add(client);
 
-                var data = new List<byte>();
-                data.AddRange(Serialize.SerializeInt((int)ServerToClientMessageType.AssignClientId));
-                data.AddRange(Serialize.SerializeInt(client.id));
-                BroadcastMessage(data.ToArray());
-                var stream = tcpClient.GetStream();
-                Message.SendMessage(stream, data.ToArray());
-
+                {
+                    var data = new List<byte>();
+                    data.AddRange(Serialize.SerializeInt((int)ServerToClientMessageType.AssignClientId));
+                    data.AddRange(Serialize.SerializeInt(client.id));
+                    SendMessageClient(data.ToArray(), client);
+                }
+                
+                {
+                    var data = new List<byte>();
+                    data.AddRange(Serialize.SerializeInt((int)ServerToClientMessageType.ClientConnected));
+                    data.AddRange(Serialize.SerializeInt(client.id));
+                    BroadcastMessageOther(data.ToArray(), client.id);
+                }
+                
                 Console.WriteLine("Client accepted: " + client.id);
             }
             
@@ -211,7 +217,7 @@ class Server
                     byte[] userDataBytes = dataStore[label];
                     var labelBytes = Encoding.ASCII.GetBytes(label);
                     var data = new List<byte>();
-                    data.AddRange(Serialize.SerializeInt((int)ClientToServerMessageType.StoreData));
+                    data.AddRange(Serialize.SerializeInt((int)ServerToClientMessageType.Data));
                     data.AddRange(Serialize.SerializeInt(labelBytes.Length));
                     data.AddRange(labelBytes);
                     data.AddRange(userDataBytes);
