@@ -51,6 +51,8 @@ class Server
         TcpListener listener = new TcpListener(System.Net.IPAddress.Any, 1302);
         listener.Start();
 
+        Console.WriteLine("Server Started");
+
         var generalBuffer = new byte[1024];
 
         while(true)
