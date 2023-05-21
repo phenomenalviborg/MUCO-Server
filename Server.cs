@@ -57,6 +57,7 @@ class Server
 
         while(true)
         {
+            bool didSomething = false;
             while (listener.Pending())
             {
                 TcpClient tcpClient = listener.AcceptTcpClient();
@@ -78,6 +79,8 @@ class Server
                 }
                 
                 Console.WriteLine("Client accepted: " + client.id);
+
+                didSomething = true;
             }
             
             for (int client_index = 0; client_index < clients.Count;)
@@ -89,6 +92,7 @@ class Server
                     NetworkStream stream = client.tcp.GetStream();
                     while (stream.DataAvailable)
                     {
+                        didSomething = true;
                         var recv = stream.Read(generalBuffer, 0, generalBuffer.Length);
                         for (int i = 0; i < recv; i++)
                         {
@@ -132,6 +136,11 @@ class Server
             {
                 var (id, message) = messages.Dequeue();
                 ProcessMessage(id, ref message);
+            }
+
+            if(!didSomething)
+            {
+                Thread.Sleep(1);
             }
         }
     }
