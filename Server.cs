@@ -3,20 +3,6 @@ using System.Net.Sockets;
 using System.Text;
 using ExtensionMethods;
 
-class Client
-{
-    public int id;
-    public TcpClient tcp;
-    public List<byte> buffer;
-
-    public Client(int id, [DisallowNull]TcpClient tcpClient)
-    {
-        this.id = id;
-        tcp = tcpClient;
-        buffer = new List<byte>();
-    }
-}
-
 enum ClientToServerMessageType
 {
     Disconnect,
@@ -46,106 +32,116 @@ class Server
     Queue<(int, byte[])> messages = new Queue<(int, byte[])>();
     List<Client> clients = new List<Client>();
     Dictionary<string, byte[]> dataStore = new Dictionary<string, byte[]>();
+    TcpListener listener = new TcpListener(System.Net.IPAddress.Any, 1302);
+    TcpClient? newTcpClient = null;
+    List<Task> allTasks = new List<Task>();
 
     public async Task Run()
     {
-        Console.WriteLine("Starting Server");
-
-        TcpListener listener = new TcpListener(System.Net.IPAddress.Any, 1302);
         listener.Start();
-
         Console.WriteLine("Server Started");
 
-        var generalBuffer = new byte[1024];
+        allTasks.Add(AcceptNewClient());
 
         while(true)
         {
-            bool didSomething = false;
-            while (listener.Pending())
+            var task = await Task.WhenAny(allTasks);
+            var task_index = allTasks.IndexOf(task);
+            if(task_index == 0)
             {
-                TcpClient tcpClient = listener.AcceptTcpClient();
-                Client client = new Client(id_counter++, tcpClient);
-                clients.Add(client);
-
-                {
-                    var data = new List<byte>();
-                    Serialize.SerializeInt(data, (int)ServerToClientMessageType.AssignClientId);
-                    Serialize.SerializeInt(data, client.id);
-                    await SendMessageClient(data.ToArray(), client);
-                }
-                
-                {
-                    var data = new List<byte>();
-                    Serialize.SerializeInt(data, (int)ServerToClientMessageType.ClientConnected);
-                    Serialize.SerializeInt(data, client.id);
-                    await BroadcastMessageOther(data.ToArray(), client.id);
-                }
-                
-                Console.WriteLine("Client accepted: " + client.id);
-
-                didSomething = true;
+                await ProcessNewClient();
             }
-            
-            for (int client_index = 0; client_index < clients.Count;)
+            else
             {
-                var client = clients[client_index];
-                
-                try
-                {
-                    NetworkStream stream = client.tcp.GetStream();
-                    while (stream.DataAvailable)
-                    {
-                        didSomething = true;
-                        var recv = stream.Read(generalBuffer, 0, generalBuffer.Length);
-                        for (int i = 0; i < recv; i++)
-                        {
-                            client.buffer.Add(generalBuffer[i]);
-                        }
-                    }
-                    client_index++;
-                }
-                catch (Exception)
-                {
-                    Console.WriteLine("Client " +  client.id + ": disconnected");
-                    client.tcp?.Close();
-                    clients.RemoveAt(client_index);
-
-                    var data = new List<byte>();
-                    Serialize.SerializeInt(data, (int)ServerToClientMessageType.ClientDisconnected);
-                    Serialize.SerializeInt(data, client.id);
-                    await BroadcastMessage(data.ToArray());
-                }
-            }
-
-            for (int client_index = 0; client_index < clients.Count; client_index++)
-            {
-                var client = clients[client_index];
-                while (client.buffer.Count > 4)
-                {
-                    var length = Serialize.DeserializeInt(client.buffer.ToArray());
-                    if (client.buffer.Count < length + 4)
-                        break;
-                    
-                    var message = new byte[length];
-                    Array.Copy(client.buffer.ToArray(), 4, message, 0, length);
-
-                    client.buffer.RemoveRange(0, length + 4);
-
-                    messages.Enqueue((client.id, message));
-                }
-            }
-
-            while(messages.Count > 0)
-            {
-                var (id, message) = messages.Dequeue();
-                await ProcessMessage(id, message);
-            }
-
-            if(!didSomething)
-            {
-                Thread.Sleep(1);
+                await ProcessClientReceivedData(task_index);
             }
         }
+    }
+
+    public async Task ProcessClientReceivedData(int task_index)
+    {
+        var client_index = task_index - 1;
+        var client = clients[client_index];
+        if(client.isDead)
+        {
+            Console.WriteLine("Client " +  client.id + ": disconnected");
+            client.tcp?.Close();
+            clients.RemoveAt(client_index);
+            allTasks.RemoveAt(task_index);
+
+            var data = new List<byte>();
+            Serialize.SerializeInt(data, (int)ServerToClientMessageType.ClientDisconnected);
+            Serialize.SerializeInt(data, client.id);
+            await BroadcastMessage(data.ToArray());
+        }
+        else
+        {
+            TryPopMessage(client_index);
+            allTasks[task_index] = client.ReceiveData();
+            await ProcessMessages();
+        }
+    }
+
+    public async Task ProcessMessages()
+    {
+        while(messages.Count > 0)
+        {
+            var (id, message) = messages.Dequeue();
+            await ProcessMessage_(id, message);
+        }
+    }
+
+    public void TryPopMessage(int client_index)
+    {
+        var client = clients[client_index];
+        while (client.messageBuffer.Count > 4)
+        {
+            var length = Serialize.DeserializeInt(client.messageBuffer.ToArray());
+            if (client.messageBuffer.Count < length + 4)
+                break;
+            
+            var message = new byte[length];
+            Array.Copy(client.messageBuffer.ToArray(), 4, message, 0, length);
+
+            client.messageBuffer.RemoveRange(0, length + 4);
+
+            messages.Enqueue((client.id, message));
+        }
+    }
+
+    public async Task AcceptNewClient()
+    {
+        newTcpClient = await listener.AcceptTcpClientAsync();
+    }
+
+    public async Task ProcessNewClient()
+    {
+        if (newTcpClient == null)
+            return;
+        
+        Client client = new Client(id_counter++, newTcpClient);
+        var client_index = clients.Count;
+        clients.Add(client);
+
+        {
+            var data = new List<byte>();
+            Serialize.SerializeInt(data, (int)ServerToClientMessageType.AssignClientId);
+            Serialize.SerializeInt(data, client.id);
+            await SendMessageClient(data.ToArray(), client);
+        }
+        
+        {
+            var data = new List<byte>();
+            Serialize.SerializeInt(data, (int)ServerToClientMessageType.ClientConnected);
+            Serialize.SerializeInt(data, client.id);
+            await BroadcastMessageOther(data.ToArray(), client.id);
+        }
+
+        allTasks.Add(clients[client_index].ReceiveData());
+        
+        Console.WriteLine("Client accepted: " + client.id);
+
+        allTasks[0] = AcceptNewClient();
     }
 
     int GetClientIndex(int id)
@@ -159,7 +155,7 @@ class Server
         return -1;
     }
 
-    async Task ProcessMessage(int clientId, byte[] buffer)
+    async Task ProcessMessage_(int clientId, byte[] buffer)
     {
         var client_index = GetClientIndex(clientId);
         var clientInfo = clients[client_index];
@@ -174,6 +170,7 @@ class Server
                 Console.WriteLine("Client " +  clientId + ": disconnected");
                 clientInfo.tcp?.Close();
                 clients.RemoveAt(client_index);
+                allTasks.RemoveAt(client_index + 1);
 
                 var data = new List<byte>();
                 Serialize.SerializeInt(data, (int)ServerToClientMessageType.ClientDisconnected);
