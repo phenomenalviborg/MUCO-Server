@@ -47,7 +47,7 @@ class Server
     List<Client> clients = new List<Client>();
     Dictionary<string, byte[]> dataStore = new Dictionary<string, byte[]>();
 
-    public void Run()
+    public async Task Run()
     {
         Console.WriteLine("Starting Server");
 
@@ -71,14 +71,14 @@ class Server
                     var data = new List<byte>();
                     Serialize.SerializeInt(data, (int)ServerToClientMessageType.AssignClientId);
                     Serialize.SerializeInt(data, client.id);
-                    SendMessageClient(data.ToArray(), client);
+                    await SendMessageClient(data.ToArray(), client);
                 }
                 
                 {
                     var data = new List<byte>();
                     Serialize.SerializeInt(data, (int)ServerToClientMessageType.ClientConnected);
                     Serialize.SerializeInt(data, client.id);
-                    BroadcastMessageOther(data.ToArray(), client.id);
+                    await BroadcastMessageOther(data.ToArray(), client.id);
                 }
                 
                 Console.WriteLine("Client accepted: " + client.id);
@@ -113,7 +113,7 @@ class Server
                     var data = new List<byte>();
                     Serialize.SerializeInt(data, (int)ServerToClientMessageType.ClientDisconnected);
                     Serialize.SerializeInt(data, client.id);
-                    BroadcastMessage(data.ToArray());
+                    await BroadcastMessage(data.ToArray());
                 }
             }
 
@@ -138,7 +138,7 @@ class Server
             while(messages.Count > 0)
             {
                 var (id, message) = messages.Dequeue();
-                ProcessMessage(id, ref message);
+                await ProcessMessage(id, message);
             }
 
             if(!didSomething)
@@ -159,7 +159,7 @@ class Server
         return -1;
     }
 
-    void ProcessMessage(int clientId, ref byte[] buffer)
+    async Task ProcessMessage(int clientId, byte[] buffer)
     {
         var client_index = GetClientIndex(clientId);
         var clientInfo = clients[client_index];
@@ -178,7 +178,7 @@ class Server
                 var data = new List<byte>();
                 Serialize.SerializeInt(data, (int)ServerToClientMessageType.ClientDisconnected);
                 Serialize.SerializeInt(data, clientId);
-                BroadcastMessage(data.ToArray());
+                await BroadcastMessage(data.ToArray());
                 break;
             }
             case ClientToServerMessageType.BroadcastChatMessage:
@@ -190,7 +190,7 @@ class Server
                 Serialize.SerializeInt(data, (int)ServerToClientMessageType.BroadcastChatMessage);
                 Serialize.SerializeInt(data, clientId);
                 data.AddRange(Encoding.ASCII.GetBytes(chatMessage));
-                BroadcastMessage(data.ToArray());
+                await BroadcastMessage(data.ToArray());
                 break;
             }
             case ClientToServerMessageType.BroadcastBytesAll:
@@ -199,7 +199,7 @@ class Server
                 Serialize.SerializeInt(data, (int)ServerToClientMessageType.BroadcastBytes);
                 Serialize.SerializeInt(data, clientId);
                 data.AddSlice(restBuffer);
-                BroadcastMessage(data.ToArray());
+                await BroadcastMessage(data.ToArray());
                 break;
             }
             case ClientToServerMessageType.BroadcastBytesOther:
@@ -208,7 +208,7 @@ class Server
                 Serialize.SerializeInt(data, (int)ServerToClientMessageType.BroadcastBytes);
                 Serialize.SerializeInt(data, clientId);
                 data.AddSlice(restBuffer);
-                BroadcastMessageOther(data.ToArray(), clientId);
+                await BroadcastMessageOther(data.ToArray(), clientId);
                 break;
             }
             case ClientToServerMessageType.StoreData:
@@ -234,7 +234,7 @@ class Server
                     Serialize.SerializeInt(data, labelBytes.Length);
                     data.AddRange(labelBytes);
                     data.AddRange(userDataBytes);
-                    SendMessageClient(data.ToArray(), clientInfo);
+                    await SendMessageClient(data.ToArray(), clientInfo);
                 }
                 break;
             }
@@ -248,7 +248,7 @@ class Server
                 Serialize.SerializeInt(data, (int)ServerToClientMessageType.BroadcastBytes);
                 Serialize.SerializeInt(data, clientId);
                 data.AddSlice(restBuffer);
-                SendMessageClient(data, toClient);
+                await SendMessageClient(data, toClient);
                 break;
             }
             default:
@@ -257,30 +257,30 @@ class Server
         }
     }
 
-    void BroadcastMessage(byte[] data)
+    async Task BroadcastMessage(byte[] data)
     {
         foreach(var client in clients)
         {
-            SendMessageClient(data, client);
+            await SendMessageClient(data, client);
         }
     }
 
-    void BroadcastMessageOther(byte[] data, int id)
+    async Task BroadcastMessageOther(byte[] data, int id)
     {
         foreach(var client in clients)
         {
             if (client.id == id)
                 continue;
-            SendMessageClient(data, client);
+            await SendMessageClient(data, client);
         }
     }
 
-    void SendMessageClient(byte[] data, Client client)
+    async Task SendMessageClient(byte[] data, Client client)
     {
         try
         {
             var stream = client.tcp.GetStream();
-            Message.SendMessage(stream, data);
+            await Message.SendMessageAsync(stream, data);
         }
         catch
         {
@@ -288,12 +288,12 @@ class Server
         }
     }
 
-    void SendMessageClient(List<byte> data, Client client)
+    async Task SendMessageClient(List<byte> data, Client client)
     {
         try
         {
             var stream = client.tcp.GetStream();
-            Message.SendMessage(stream, data);
+            await Message.SendMessageAsync(stream, data);
         }
         catch
         {

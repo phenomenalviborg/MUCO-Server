@@ -1,3 +1,3 @@
 ﻿var server = new Server();
 
-server.Run();
+await server.Run();
