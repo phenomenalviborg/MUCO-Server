@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Net.Sockets;
 using System.Text;
 using ExtensionMethods;
@@ -72,7 +71,7 @@ class Server
             var data = new List<byte>();
             Serialize.SerializeInt(data, (int)ServerToClientMessageType.ClientDisconnected);
             Serialize.SerializeInt(data, client.id);
-            await BroadcastMessage(data.ToArray());
+            await BroadcastMessage(data);
         }
         else
         {
@@ -96,7 +95,7 @@ class Server
         var client = clients[client_index];
         while (client.messageBuffer.Count > 4)
         {
-            var length = Serialize.DeserializeInt(client.messageBuffer.ToArray());
+            var length = Serialize.DeserializeInt(client.messageBuffer);
             if (client.messageBuffer.Count < length + 4)
                 break;
             
@@ -127,19 +126,19 @@ class Server
             var data = new List<byte>();
             Serialize.SerializeInt(data, (int)ServerToClientMessageType.AssignClientId);
             Serialize.SerializeInt(data, client.id);
-            await SendMessageClient(data.ToArray(), client);
+            await SendMessageClient(data, client);
         }
         
         {
             var data = new List<byte>();
             Serialize.SerializeInt(data, (int)ServerToClientMessageType.ClientConnected);
             Serialize.SerializeInt(data, client.id);
-            await BroadcastMessageOther(data.ToArray(), client.id);
+            await BroadcastMessageOther(data, client.id);
         }
 
         allTasks.Add(clients[client_index].ReceiveData());
         
-        Console.WriteLine("Client accepted: " + client.id);
+        Console.WriteLine("Client accepted: " + client.id + " " + client.tcp.Client.RemoteEndPoint);
 
         allTasks[0] = AcceptNewClient();
     }
@@ -175,7 +174,7 @@ class Server
                 var data = new List<byte>();
                 Serialize.SerializeInt(data, (int)ServerToClientMessageType.ClientDisconnected);
                 Serialize.SerializeInt(data, clientId);
-                await BroadcastMessage(data.ToArray());
+                await BroadcastMessage(data);
                 break;
             }
             case ClientToServerMessageType.BroadcastChatMessage:
@@ -187,7 +186,7 @@ class Server
                 Serialize.SerializeInt(data, (int)ServerToClientMessageType.BroadcastChatMessage);
                 Serialize.SerializeInt(data, clientId);
                 data.AddRange(Encoding.ASCII.GetBytes(chatMessage));
-                await BroadcastMessage(data.ToArray());
+                await BroadcastMessage(data);
                 break;
             }
             case ClientToServerMessageType.BroadcastBytesAll:
@@ -196,7 +195,7 @@ class Server
                 Serialize.SerializeInt(data, (int)ServerToClientMessageType.BroadcastBytes);
                 Serialize.SerializeInt(data, clientId);
                 data.AddSlice(restBuffer);
-                await BroadcastMessage(data.ToArray());
+                await BroadcastMessage(data);
                 break;
             }
             case ClientToServerMessageType.BroadcastBytesOther:
@@ -205,7 +204,7 @@ class Server
                 Serialize.SerializeInt(data, (int)ServerToClientMessageType.BroadcastBytes);
                 Serialize.SerializeInt(data, clientId);
                 data.AddSlice(restBuffer);
-                await BroadcastMessageOther(data.ToArray(), clientId);
+                await BroadcastMessageOther(data, clientId);
                 break;
             }
             case ClientToServerMessageType.StoreData:
@@ -231,7 +230,7 @@ class Server
                     Serialize.SerializeInt(data, labelBytes.Length);
                     data.AddRange(labelBytes);
                     data.AddRange(userDataBytes);
-                    await SendMessageClient(data.ToArray(), clientInfo);
+                    await SendMessageClient(data, clientInfo);
                 }
                 break;
             }
@@ -254,21 +253,23 @@ class Server
         }
     }
 
-    async Task BroadcastMessage(byte[] data)
+    async Task BroadcastMessage(List<byte> data)
     {
+        var array = data.ToArray();
         foreach(var client in clients)
         {
-            await SendMessageClient(data, client);
+            await SendMessageClient(array, client);
         }
     }
 
-    async Task BroadcastMessageOther(byte[] data, int id)
+    async Task BroadcastMessageOther(List<byte> data, int id)
     {
+        var array = data.ToArray();
         foreach(var client in clients)
         {
             if (client.id == id)
                 continue;
-            await SendMessageClient(data, client);
+            await SendMessageClient(array, client);
         }
     }
 

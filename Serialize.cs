@@ -28,6 +28,15 @@ public static class Serialize
         return acc;
     }
 
+    public static int DeserializeInt(List<byte> buffer)
+    {
+        int acc = (int)buffer[0];
+        acc += (int)buffer[1] << 8;
+        acc += (int)buffer[2] << 16;
+        acc += (int)buffer[3] << 24;
+        return acc;
+    }
+
     public static int DeserializeInt(BufferSlice slice)
     {
         int acc = (int)slice.bytes[slice.begin + 0];
