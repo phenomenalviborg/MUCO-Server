@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Sockets;
 using System.Text;
+using ExtensionMethods;
 
 class Client
 {
@@ -11,8 +12,8 @@ class Client
     public Client(int id, [DisallowNull]TcpClient tcpClient)
     {
         this.id = id;
-        this.tcp = tcpClient;
-        this.buffer = new List<byte>();
+        tcp = tcpClient;
+        buffer = new List<byte>();
     }
 }
 
@@ -24,6 +25,7 @@ enum ClientToServerMessageType
     BroadcastBytesOther,
     StoreData,
     RetrieveData,
+    BinaryMessageTo,
 }
 
 enum ServerToClientMessageType
@@ -34,6 +36,7 @@ enum ServerToClientMessageType
     BroadcastChatMessage,
     BroadcastBytes,
     Data,
+    BinaryMessageFrom,
 }
 
 class Server
@@ -66,15 +69,15 @@ class Server
 
                 {
                     var data = new List<byte>();
-                    data.AddRange(Serialize.SerializeInt((int)ServerToClientMessageType.AssignClientId));
-                    data.AddRange(Serialize.SerializeInt(client.id));
+                    Serialize.SerializeInt(data, (int)ServerToClientMessageType.AssignClientId);
+                    Serialize.SerializeInt(data, client.id);
                     SendMessageClient(data.ToArray(), client);
                 }
                 
                 {
                     var data = new List<byte>();
-                    data.AddRange(Serialize.SerializeInt((int)ServerToClientMessageType.ClientConnected));
-                    data.AddRange(Serialize.SerializeInt(client.id));
+                    Serialize.SerializeInt(data, (int)ServerToClientMessageType.ClientConnected);
+                    Serialize.SerializeInt(data, client.id);
                     BroadcastMessageOther(data.ToArray(), client.id);
                 }
                 
@@ -108,8 +111,8 @@ class Server
                     clients.RemoveAt(client_index);
 
                     var data = new List<byte>();
-                    data.AddRange(Serialize.SerializeInt((int)ServerToClientMessageType.ClientDisconnected));
-                    data.AddRange(Serialize.SerializeInt(client.id));
+                    Serialize.SerializeInt(data, (int)ServerToClientMessageType.ClientDisconnected);
+                    Serialize.SerializeInt(data, client.id);
                     BroadcastMessage(data.ToArray());
                 }
             }
@@ -162,8 +165,7 @@ class Server
         var clientInfo = clients[client_index];
 
         var messageType = (ClientToServerMessageType)Serialize.DeserializeInt(buffer);
-        var restBuffer = new byte[buffer.Length - 4];
-        Array.Copy(buffer, 4, restBuffer, 0, buffer.Length - 4);
+        var restBuffer = new BufferSlice(buffer).DropBegin(4);
 
         switch (messageType)
         {
@@ -174,19 +176,19 @@ class Server
                 clients.RemoveAt(client_index);
 
                 var data = new List<byte>();
-                data.AddRange(Serialize.SerializeInt((int)ServerToClientMessageType.ClientDisconnected));
-                data.AddRange(Serialize.SerializeInt(clientInfo.id));
+                Serialize.SerializeInt(data, (int)ServerToClientMessageType.ClientDisconnected);
+                Serialize.SerializeInt(data, clientId);
                 BroadcastMessage(data.ToArray());
                 break;
             }
             case ClientToServerMessageType.BroadcastChatMessage:
             {
-                string chatMessage = Encoding.UTF8.GetString(restBuffer, 0, restBuffer.Length);
+                var chatMessage = restBuffer.ToUTF8();
                 Console.WriteLine("broadcast chat message " + clientInfo.id + ": " + chatMessage);
 
                 var data = new List<byte>();
-                data.AddRange(Serialize.SerializeInt((int)ServerToClientMessageType.BroadcastChatMessage));
-                data.AddRange(Serialize.SerializeInt(clientInfo.id));
+                Serialize.SerializeInt(data, (int)ServerToClientMessageType.BroadcastChatMessage);
+                Serialize.SerializeInt(data, clientId);
                 data.AddRange(Encoding.ASCII.GetBytes(chatMessage));
                 BroadcastMessage(data.ToArray());
                 break;
@@ -194,46 +196,59 @@ class Server
             case ClientToServerMessageType.BroadcastBytesAll:
             {
                 var data = new List<byte>();
-                data.AddRange(Serialize.SerializeInt((int)ServerToClientMessageType.BroadcastBytes));
-                data.AddRange(Serialize.SerializeInt(clientInfo.id));
-                data.AddRange(restBuffer);
+                Serialize.SerializeInt(data, (int)ServerToClientMessageType.BroadcastBytes);
+                Serialize.SerializeInt(data, clientId);
+                data.AddSlice(restBuffer);
                 BroadcastMessage(data.ToArray());
                 break;
             }
             case ClientToServerMessageType.BroadcastBytesOther:
             {
                 var data = new List<byte>();
-                data.AddRange(Serialize.SerializeInt((int)ServerToClientMessageType.BroadcastBytes));
-                data.AddRange(Serialize.SerializeInt(clientInfo.id));
-                data.AddRange(restBuffer);
+                Serialize.SerializeInt(data, (int)ServerToClientMessageType.BroadcastBytes);
+                Serialize.SerializeInt(data, clientId);
+                data.AddSlice(restBuffer);
                 BroadcastMessageOther(data.ToArray(), clientId);
                 break;
             }
             case ClientToServerMessageType.StoreData:
             {
                 var stringLength = Serialize.DeserializeInt(restBuffer);
-                var stringBytes = new byte[stringLength];
-                var dataBytes = new byte[restBuffer.Length - 4 - stringLength];
-                Array.Copy(restBuffer, 4, stringBytes, 0, stringLength);
-                Array.Copy(restBuffer, 4 + stringLength, dataBytes, 0, restBuffer.Length - 4 - stringLength);
-                string label = Encoding.UTF8.GetString(stringBytes, 0, stringBytes.Length);
+                restBuffer = restBuffer.DropBegin(4);
+                var (stringSlice, dataSlice) = restBuffer.SplitAt(stringLength);
+                string label = stringSlice.ToUTF8();
+                var dataBytes = dataSlice.ToBuffer();
                 dataStore[label] = dataBytes;
+
                 break;
             }
             case ClientToServerMessageType.RetrieveData:
             {
-                string label = Encoding.UTF8.GetString(restBuffer, 0, restBuffer.Length);
+                var label = restBuffer.ToUTF8();
                 if (dataStore.ContainsKey(label))
                 {
                     byte[] userDataBytes = dataStore[label];
                     var labelBytes = Encoding.ASCII.GetBytes(label);
                     var data = new List<byte>();
-                    data.AddRange(Serialize.SerializeInt((int)ServerToClientMessageType.Data));
-                    data.AddRange(Serialize.SerializeInt(labelBytes.Length));
+                    Serialize.SerializeInt(data, (int)ServerToClientMessageType.Data);
+                    Serialize.SerializeInt(data, labelBytes.Length);
                     data.AddRange(labelBytes);
                     data.AddRange(userDataBytes);
                     SendMessageClient(data.ToArray(), clientInfo);
                 }
+                break;
+            }
+            case ClientToServerMessageType.BinaryMessageTo:
+            {
+                var toClientId = Serialize.DeserializeInt(restBuffer);
+                restBuffer = restBuffer.DropBegin(4);
+                var toClientIndex = GetClientIndex(toClientId);
+                var toClient = clients[toClientIndex];
+                var data = new List<byte>();
+                Serialize.SerializeInt(data, (int)ServerToClientMessageType.BroadcastBytes);
+                Serialize.SerializeInt(data, clientId);
+                data.AddSlice(restBuffer);
+                SendMessageClient(data, toClient);
                 break;
             }
             default:
@@ -261,6 +276,19 @@ class Server
     }
 
     void SendMessageClient(byte[] data, Client client)
+    {
+        try
+        {
+            var stream = client.tcp.GetStream();
+            Message.SendMessage(stream, data);
+        }
+        catch
+        {
+            Console.WriteLine("Could not send message to client: " + client.id);
+        }
+    }
+
+    void SendMessageClient(List<byte> data, Client client)
     {
         try
         {
