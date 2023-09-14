@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using ExtensionMethods;
@@ -38,7 +39,17 @@ class Server
     public async Task Run()
     {
         listener.Start();
-        Console.WriteLine("Server Started");
+        Console.WriteLine("Server Started\n");
+
+        Console.WriteLine("Address List:");
+        string hostName = Dns.GetHostName();
+        var host = Dns.GetHostEntry(hostName);
+        var addresList = host.AddressList;
+        foreach(var ip in addresList)
+        {
+            Console.WriteLine("" + ip);
+        }
+        Console.WriteLine("\n");
 
         allTasks.Add(AcceptNewClient());
 
