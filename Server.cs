@@ -65,6 +65,32 @@ class Server
             {
                 await ProcessClientReceivedData(task_index);
             }
+
+            await KickDeadClients();
+        }
+    }
+
+    public async Task DealWithDisconnectedClient(int client_index)
+    {
+        var client = clients[client_index];
+        Console.WriteLine("Client " +  client.id + ": disconnected");
+        client.tcp?.Close();
+        clients.RemoveAt(client_index);
+        allTasks.RemoveAt(client_index + 1);
+
+        var data = new List<byte>();
+        Serialize.SerializeInt(data, (int)ServerToClientMessageType.ClientDisconnected);
+        Serialize.SerializeInt(data, client.id);
+        await BroadcastMessage(data);
+    }
+
+    public async Task KickDeadClients()
+    {
+        for(int client_index = 0; client_index < clients.Count; client_index++)
+        {
+            var client = clients[client_index];
+            if(client.isDead)
+                await DealWithDisconnectedClient(client_index);
         }
     }
 
@@ -74,15 +100,7 @@ class Server
         var client = clients[client_index];
         if(client.isDead)
         {
-            Console.WriteLine("Client " +  client.id + ": disconnected");
-            client.tcp?.Close();
-            clients.RemoveAt(client_index);
-            allTasks.RemoveAt(task_index);
-
-            var data = new List<byte>();
-            Serialize.SerializeInt(data, (int)ServerToClientMessageType.ClientDisconnected);
-            Serialize.SerializeInt(data, client.id);
-            await BroadcastMessage(data);
+            await DealWithDisconnectedClient(client_index);
         }
         else
         {
@@ -97,7 +115,7 @@ class Server
         while(messages.Count > 0)
         {
             var (id, message) = messages.Dequeue();
-            await ProcessMessage_(id, message);
+            await ProcessMessage(id, message);
         }
     }
 
@@ -165,7 +183,7 @@ class Server
         return -1;
     }
 
-    async Task ProcessMessage_(int clientId, byte[] buffer)
+    async Task ProcessMessage(int clientId, byte[] buffer)
     {
         var client_index = GetClientIndex(clientId);
         var clientInfo = clients[client_index];
@@ -294,6 +312,7 @@ class Server
         catch
         {
             Console.WriteLine("Could not send message to client: " + client.id);
+            client.isDead = true;
         }
     }
 
@@ -307,6 +326,7 @@ class Server
         catch
         {
             Console.WriteLine("Could not send message to client: " + client.id);
+            client.isDead = true;
         }
     }
 }
