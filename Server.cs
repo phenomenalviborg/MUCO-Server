@@ -74,8 +74,16 @@ class Server
     {
         var client = clients[client_index];
         Console.WriteLine("Client " +  client.id + ": disconnected");
-        client.tcp?.Close();
+        try
+        {
+            client.tcp?.Close();
+        }
+        catch {}
+
+        clients[client_index].tcp.Dispose();
         clients.RemoveAt(client_index);
+
+        allTasks[client_index + 1].Dispose();
         allTasks.RemoveAt(client_index + 1);
 
         var data = new List<byte>();
