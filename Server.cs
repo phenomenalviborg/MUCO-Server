@@ -34,7 +34,6 @@ class Server
     Dictionary<string, byte[]> dataStore = new Dictionary<string, byte[]>();
     TcpListener listener = new TcpListener(System.Net.IPAddress.Any, 1302);
     TcpClient? newTcpClient = null;
-    List<Task> allTasks = new List<Task>();
 
     public async Task Run()
     {
@@ -51,7 +50,42 @@ class Server
         }
         Console.WriteLine("\n");
 
-        allTasks.Add(AcceptNewClient());
+        await PlanB();
+    }
+
+    public async Task PlanB() {
+        while (true) {
+            try {
+                while (listener.Pending())
+                {
+                    await AcceptNewClient();
+                    await ProcessNewClient();
+                }
+                for(int client_index = 0; client_index < clients.Count; client_index++)
+                {
+                    while (clients[client_index].tcp.GetStream().DataAvailable) {
+                        await clients[client_index].ReceiveData();
+                        await ProcessClientReceivedData(client_index);
+                    }
+                }
+                for(int client_index = 0; client_index < clients.Count; client_index++)
+                {
+                    var client = clients[client_index];
+                    if(client.isDead)
+                        await DealWithDisconnectedClient(client_index);
+                }
+            }
+            catch (Exception e) {
+                Console.WriteLine("Oops: " + e);
+            }
+        }
+    }
+
+    public async Task PlanA() {
+        List<Task> allTasks = new List<Task>
+        {
+            AcceptNewClient()
+        };
 
         while(true)
         {
@@ -62,13 +96,25 @@ class Server
                 if(task_index == 0)
                 {
                     await ProcessNewClient();
+                    var client_index = clients.Count-1;
+                    allTasks.Add(clients[client_index].ReceiveData());
+                    allTasks[0] = AcceptNewClient();
                 }
                 else
                 {
-                    await ProcessClientReceivedData(task_index);
+                    var client_index = task_index - 1;
+                    await ProcessClientReceivedData(client_index);
+                    allTasks[task_index] = clients[client_index].ReceiveData();
                 }
-
-                await KickDeadClients();
+                for(int client_index = 0; client_index < clients.Count; client_index++)
+                {
+                    var client = clients[client_index];
+                    if(client.isDead)
+                    {
+                        await DealWithDisconnectedClient(client_index);
+                        allTasks.RemoveAt(client_index + 1);
+                    }
+                }
             }
             catch
             {
@@ -90,36 +136,18 @@ class Server
         clients[client_index].tcp.Dispose();
         clients.RemoveAt(client_index);
 
-        allTasks.RemoveAt(client_index + 1);
-
         var data = new List<byte>();
         Serialize.SerializeInt(data, (int)ServerToClientMessageType.ClientDisconnected);
         Serialize.SerializeInt(data, client.id);
         await BroadcastMessage(data);
     }
 
-    public async Task KickDeadClients()
+    public async Task ProcessClientReceivedData(int client_index)
     {
-        for(int client_index = 0; client_index < clients.Count; client_index++)
-        {
-            var client = clients[client_index];
-            if(client.isDead)
-                await DealWithDisconnectedClient(client_index);
-        }
-    }
-
-    public async Task ProcessClientReceivedData(int task_index)
-    {
-        var client_index = task_index - 1;
         var client = clients[client_index];
-        if(client.isDead)
-        {
-            await DealWithDisconnectedClient(client_index);
-        }
-        else
+        if(!client.isDead)
         {
             TryPopMessage(client_index);
-            allTasks[task_index] = client.ReceiveData();
             await ProcessMessages();
         }
     }
@@ -169,7 +197,7 @@ class Server
             return;
         
         Client client = new Client(id_counter++, newTcpClient);
-        var client_index = clients.Count;
+        
         clients.Add(client);
 
         {
@@ -186,11 +214,7 @@ class Server
             await BroadcastMessageOther(data, client.id);
         }
 
-        allTasks.Add(clients[client_index].ReceiveData());
-        
         Console.WriteLine("Client accepted: " + client.id + " " + client.tcp.Client.RemoteEndPoint);
-
-        allTasks[0] = AcceptNewClient();
     }
 
     int GetClientIndex(int id)
@@ -217,9 +241,7 @@ class Server
             case ClientToServerMessageType.Disconnect:
             {
                 Console.WriteLine("Client " +  clientId + ": disconnected");
-                clientInfo.tcp?.Close();
-                clients.RemoveAt(client_index);
-                allTasks.RemoveAt(client_index + 1);
+                clients[client_index].isDead = true;
 
                 var data = new List<byte>();
                 Serialize.SerializeInt(data, (int)ServerToClientMessageType.ClientDisconnected);
@@ -327,6 +349,9 @@ class Server
     {
         try
         {
+            if(client.isDead)
+                return;
+
             var stream = client.tcp.GetStream();
             await Message.SendMessageAsync(stream, data);
         }
@@ -341,6 +366,9 @@ class Server
     {
         try
         {
+            if(client.isDead)
+                return;
+            
             var stream = client.tcp.GetStream();
             await Message.SendMessageAsync(stream, data);
         }
