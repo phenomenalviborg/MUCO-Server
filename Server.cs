@@ -63,7 +63,7 @@ class Server
                 }
                 for(int client_index = 0; client_index < clients.Count; client_index++)
                 {
-                    while (clients[client_index].tcp.GetStream().DataAvailable) {
+                    while (clients[client_index].DataAvailable()) {
                         await clients[client_index].ReceiveData();
                         await ProcessClientReceivedData(client_index);
                     }

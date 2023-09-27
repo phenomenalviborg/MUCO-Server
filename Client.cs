@@ -34,4 +34,20 @@ public class Client
             isDead = true;
         }
     }
+
+    public bool DataAvailable()
+    {
+        try
+        {
+            if (isDead) return false;
+            if (!tcp.Connected) return false;
+            var stream = tcp.GetStream();
+            return stream.DataAvailable;
+        }
+        catch(Exception e)
+        {
+            Console.WriteLine("Exception in Client Data Available: ", e);
+            return false;
+        }
+    }
 }
