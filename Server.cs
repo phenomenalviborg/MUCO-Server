@@ -55,18 +55,25 @@ class Server
 
         while(true)
         {
-            var task = await Task.WhenAny(allTasks);
-            var task_index = allTasks.IndexOf(task);
-            if(task_index == 0)
+            try
             {
-                await ProcessNewClient();
-            }
-            else
-            {
-                await ProcessClientReceivedData(task_index);
-            }
+                var task = await Task.WhenAny(allTasks);
+                var task_index = allTasks.IndexOf(task);
+                if(task_index == 0)
+                {
+                    await ProcessNewClient();
+                }
+                else
+                {
+                    await ProcessClientReceivedData(task_index);
+                }
 
-            await KickDeadClients();
+                await KickDeadClients();
+            }
+            catch
+            {
+                Console.Write("Somthing went wrong in the main loop");
+            }
         }
     }
 
@@ -146,7 +153,14 @@ class Server
 
     public async Task AcceptNewClient()
     {
-        newTcpClient = await listener.AcceptTcpClientAsync();
+        try
+        {
+            newTcpClient = await listener.AcceptTcpClientAsync();
+        }
+        catch
+        {
+            Console.Write("Something went wrong in AcceptNewClient");
+        }
     }
 
     public async Task ProcessNewClient()
