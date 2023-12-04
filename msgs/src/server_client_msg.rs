@@ -10,7 +10,6 @@ pub enum ServerClientMsg {
     AssignSessionId (u32),
     ClientConnected (u32),
     ClientDisconnected (u32),
-    BroadcastBytes (u32, Vec<u8>),
     BinaryMessageFrom (u32, Vec<u8>),
 }
 
@@ -44,11 +43,6 @@ impl ServerClientMsg {
             3 => {
                 let sender = rdr.read_u32::<LittleEndian>().unwrap();
                 let bs = input_buffer[begin+4..].to_vec();
-                ServerClientMsg::BroadcastBytes (sender, bs)
-            }
-            4 => {
-                let sender = rdr.read_u32::<LittleEndian>().unwrap();
-                let bs = input_buffer[begin+4..].to_vec();
                 ServerClientMsg::BinaryMessageFrom (sender, bs)
             }
             type_index => {
@@ -75,12 +69,6 @@ impl ServerClientMsg {
                 wtr.write_u32::<LittleEndian>(8).unwrap();
                 wtr.write_u32::<LittleEndian>(2).unwrap();
                 wtr.write_u32::<LittleEndian>(*id as u32).unwrap();
-            }
-            ServerClientMsg::BroadcastBytes (sender, bytes) => {
-                wtr.write_u32::<LittleEndian>(8 + bytes.len() as u32).unwrap();
-                wtr.write_u32::<LittleEndian>(3).unwrap();
-                wtr.write_u32::<LittleEndian>(*sender as u32).unwrap();
-                wtr.write_all(bytes).unwrap();
             }
             ServerClientMsg::BinaryMessageFrom (sender, bytes) => {
                 wtr.write_u32::<LittleEndian>(8 + bytes.len() as u32).unwrap();

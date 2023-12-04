@@ -48,22 +48,22 @@ impl ClientDb {
         self.clients.retain(|client| client.session_id != client_id)
     }
 
-    pub async fn process_message(&mut self, msg: ClientServerMsg, client_id: u32) {
+    pub async fn process_message(&mut self, msg: ClientServerMsg, session_id: u32) {
         match msg {
             ClientServerMsg::Disconnect => {
-                self.remove(client_id);
+                self.remove(session_id);
                 for client in self.all_clients() {
-                    client.main_to_client.send(ServerClientMsg::ClientDisconnected(client_id)).await.unwrap();
+                    client.main_to_client.send(ServerClientMsg::ClientDisconnected(session_id)).await.unwrap();
                 }
             }
             ClientServerMsg::BroadcastBytesAll(bytes) => {
                 for client in self.all_clients() {
-                    client.main_to_client.send(ServerClientMsg::BroadcastBytes(client_id, bytes.clone())).await.unwrap();
+                    client.main_to_client.send(ServerClientMsg::BinaryMessageFrom(session_id, bytes.clone())).await.unwrap();
                 }
             }
             ClientServerMsg::BroadcastBytesOther(bytes) => {
-                for client in self.other_clients(client_id) {
-                    client.main_to_client.send(ServerClientMsg::BroadcastBytes(client_id, bytes.clone())).await.unwrap();
+                for client in self.other_clients(session_id) {
+                    client.main_to_client.send(ServerClientMsg::BinaryMessageFrom(session_id, bytes.clone())).await.unwrap();
                 }
             }
             ClientServerMsg::BinaryMessageTo(addressed, bytes) => {
@@ -71,13 +71,13 @@ impl ClientDb {
                 client.main_to_client.send(ServerClientMsg::BinaryMessageFrom(addressed, bytes.clone())).await.unwrap();
             }
             ClientServerMsg::SetClientType(client_type) => {
-                let client = self.get_mut(client_id).unwrap();
+                let client = self.get_mut(session_id).unwrap();
                 client.client_type = Some(client_type);
 
                 match client_type {
                     ClientType::Player => {
-                        for client in &mut self.other_clients(client_id) {
-                            client.main_to_client.send(ServerClientMsg::ClientConnected(client_id)).await.unwrap();
+                        for client in &mut self.other_clients(session_id) {
+                            client.main_to_client.send(ServerClientMsg::ClientConnected(session_id)).await.unwrap();
                         }
                     }
                     ClientType::Manager => {}
