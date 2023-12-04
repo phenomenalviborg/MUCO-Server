@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 
 use tokio::{net::TcpStream, io::{AsyncReadExt, AsyncWriteExt}};
 
-use crate::{client::Client, msgs::{ClientServerMsg, ServerClientMsg}};
+use crate::{client::{Client, ClientType}, msgs::{ClientServerMsg, ServerClientMsg}};
 
 pub struct ClientDb {
     pub user_id_counter: usize,
@@ -21,11 +21,8 @@ impl ClientDb {
         let user_id = self.user_id_counter;
         self.user_id_counter += 1;
         let main_to_client = spawn_client_process(socket, client_to_main.clone(), user_id, addr);
-        let client = Client { user_id, main_to_client };
+        let client = Client { user_id, main_to_client, client_type: None };
         client.main_to_client.send(ServerClientMsg::AssignClientId(user_id)).await.unwrap();
-        for client in &mut self.all_clients_mut() {
-            client.main_to_client.send(ServerClientMsg::ClientConnected(user_id)).await.unwrap();
-        }
         self.clients.push(client);
         println!("accepted client: {user_id} {addr}");
     }
@@ -34,16 +31,16 @@ impl ClientDb {
         self.clients.iter().find(|client| client.user_id == client_id)
     }
     
+    pub fn get_mut(&mut self, client_id: usize) -> Option<&mut Client> {
+        self.clients.iter_mut().find(|client| client.user_id == client_id)
+    }
+    
     pub fn all_clients(&self) -> impl Iterator<Item = &Client> {
         self.clients.iter()
     }
 
     pub fn other_clients(&self, client_id: usize) -> impl Iterator<Item = &Client> {
         self.clients.iter().filter(move |client| client.user_id != client_id)
-    }
-
-    pub fn all_clients_mut(&mut self) -> impl Iterator<Item = &mut Client> {
-        self.clients.iter_mut()
     }
 
     pub fn remove(&mut self, client_id: usize) {
@@ -72,8 +69,18 @@ impl ClientDb {
                 let client = self.get(addressed).unwrap();
                 client.main_to_client.send(ServerClientMsg::BinaryMessageFrom(addressed, bytes.clone())).await.unwrap();
             }
-            ClientServerMsg::Unsupported(msg_type) => {
-                println!("msg type unsupported: {msg_type}")
+            ClientServerMsg::SetClientType(client_type) => {
+                let client = self.get_mut(client_id).unwrap();
+                client.client_type = Some(client_type);
+
+                match client_type {
+                    ClientType::Player => {
+                        for client in &mut self.other_clients(client_id) {
+                            client.main_to_client.send(ServerClientMsg::ClientConnected(client_id)).await.unwrap();
+                        }
+                    }
+                    ClientType::Manager => {}
+                }
             }
         }
     }
@@ -89,15 +96,26 @@ pub fn spawn_client_process(mut socket: TcpStream, client_to_main: tokio::sync::
         loop {
             tokio::select! {
                 result = socket.read(&mut static_buffer) => {
-                    let len = result.unwrap();
+                    let len = match result {
+                        Ok(len) => len,
+                        Err(e) => {
+                            println!("error while reading from socket: {e}");
+                            return;
+                        }
+                    };
                     if len == 0 {
                         println!("client died: {user_id} {addr}");
                         break;
                     }
                     input_buffer.extend(&static_buffer[..len]);
                     
-                    while let Some(msg) = ClientServerMsg::dequeue(&mut input_buffer) {
-                        client_to_main.send((user_id, msg)).await.unwrap();
+                    while let Some(msg) = ClientServerMsg::dequeue_and_decode(&mut input_buffer) {
+                        match msg {
+                            Ok(msg) => {
+                                client_to_main.send((user_id, msg)).await.unwrap();
+                            }
+                            Err(e) => println!("error while decode msg: {e}")
+                        }
                     }
                 }
                 result = client_from_main.recv() => {

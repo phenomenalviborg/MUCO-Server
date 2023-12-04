@@ -1,6 +1,9 @@
 use std::io::{Cursor, Write};
 
+use anyhow::{Context, bail};
 use byteorder::{WriteBytesExt, LittleEndian, ReadBytesExt};
+
+use crate::client::ClientType;
 
 #[derive(Debug, Clone)]
 pub enum ClientServerMsg {
@@ -11,11 +14,18 @@ pub enum ClientServerMsg {
     //StoreData
     //RetrieveData
     BinaryMessageTo (usize, Vec<u8>),
-    Unsupported (u32),
+    SetClientType (ClientType),
 }
 
 impl ClientServerMsg {
-    pub fn dequeue(input_buffer: &mut Vec<u8>) -> Option<ClientServerMsg> {
+    pub fn dequeue_and_decode(input_buffer: &mut Vec<u8>) -> Option<anyhow::Result<ClientServerMsg>> {
+        let Some((begin, end)) = Self::dequeue(input_buffer) else { return None };
+        let msg = Self::decode(&input_buffer[begin..end]);
+        input_buffer.drain(..end);
+        Some(msg)
+    }
+
+    pub fn dequeue(input_buffer: &mut Vec<u8>) -> Option<(usize, usize)> {
         if input_buffer.len() < 4 {
             return None
         }
@@ -34,35 +44,43 @@ impl ClientServerMsg {
             return None
         }
 
+        Some((4, end))
+    }
+
+    pub fn decode(input_buffer: &[u8]) -> anyhow::Result<ClientServerMsg> {
+        let mut rdr = Cursor::new(&input_buffer);
         let msg_type_index = rdr.read_u32::<LittleEndian>().unwrap();
 
-        let begin = 8;
+        let begin = 4;
 
-        let msg = Some(match msg_type_index {
+        let msg = match msg_type_index {
             0 => {
                 ClientServerMsg::Disconnect
             }
             2 => {
-                let bs = input_buffer[begin..end].to_vec();
+                let bs = input_buffer[begin..].to_vec();
                 ClientServerMsg::BroadcastBytesAll (bs)
             }
             3 => {
-                let bs = input_buffer[begin..end].to_vec();
+                let bs = input_buffer[begin..].to_vec();
                 ClientServerMsg::BroadcastBytesOther (bs)
             }
             6 => {
                 let address = rdr.read_u32::<LittleEndian>().unwrap() as usize;
-                let bs = input_buffer[begin+4..end].to_vec();
+                let bs = input_buffer[begin+4..].to_vec();
                 ClientServerMsg::BinaryMessageTo (address, bs)
             }
-            _ => {
-                ClientServerMsg::Unsupported (msg_type_index)
+            7 => {
+                let client_type_index = rdr.read_u32::<LittleEndian>().unwrap();
+                let client_type = ClientType::from_u32(client_type_index).context("unsupported client id")?;
+                ClientServerMsg::SetClientType (client_type)
             }
-        });
+            type_index => {
+                bail!("unsupported msg type: {type_index}");
+            }
+        };
 
-        input_buffer.drain(..end);
-
-        msg
+        Ok(msg)
     }
 }
 
