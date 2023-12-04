@@ -6,49 +6,49 @@ use tokio::{net::TcpStream, io::{AsyncReadExt, AsyncWriteExt}};
 use crate::client::Client;
 
 pub struct ClientDb {
-    pub user_id_counter: usize,
+    pub session_id_counter: u32,
     pub clients: Vec<Client>,
 }
 
 impl ClientDb {
     pub fn new() -> ClientDb {
         ClientDb {
-            user_id_counter: 0,
+            session_id_counter: 0,
             clients: Vec::new(),
         }
     }
 
-    pub async fn new_client(&mut self, socket: TcpStream, addr: SocketAddr, client_to_main: tokio::sync::mpsc::Sender<(usize, ClientServerMsg)>) {
-        let user_id = self.user_id_counter;
-        self.user_id_counter += 1;
-        let main_to_client = spawn_client_process(socket, client_to_main.clone(), user_id, addr);
-        let client = Client { user_id, main_to_client, client_type: None };
-        client.main_to_client.send(ServerClientMsg::AssignClientId(user_id)).await.unwrap();
+    pub async fn new_client(&mut self, socket: TcpStream, addr: SocketAddr, client_to_main: tokio::sync::mpsc::Sender<(u32, ClientServerMsg)>) {
+        let session_id = self.session_id_counter;
+        self.session_id_counter += 1;
+        let main_to_client = spawn_client_process(socket, client_to_main.clone(), session_id, addr);
+        let client = Client { session_id, main_to_client, client_type: None };
+        client.main_to_client.send(ServerClientMsg::AssignSessionId(session_id)).await.unwrap();
         self.clients.push(client);
-        println!("accepted client: {user_id} {addr}");
+        println!("accepted client: {session_id} {addr}");
     }
 
-    pub fn get(&self, client_id: usize) -> Option<&Client> {
-        self.clients.iter().find(|client| client.user_id == client_id)
+    pub fn get(&self, client_id: u32) -> Option<&Client> {
+        self.clients.iter().find(|client| client.session_id == client_id)
     }
     
-    pub fn get_mut(&mut self, client_id: usize) -> Option<&mut Client> {
-        self.clients.iter_mut().find(|client| client.user_id == client_id)
+    pub fn get_mut(&mut self, client_id: u32) -> Option<&mut Client> {
+        self.clients.iter_mut().find(|client| client.session_id == client_id)
     }
     
     pub fn all_clients(&self) -> impl Iterator<Item = &Client> {
         self.clients.iter()
     }
 
-    pub fn other_clients(&self, client_id: usize) -> impl Iterator<Item = &Client> {
-        self.clients.iter().filter(move |client| client.user_id != client_id)
+    pub fn other_clients(&self, client_id: u32) -> impl Iterator<Item = &Client> {
+        self.clients.iter().filter(move |client| client.session_id != client_id)
     }
 
-    pub fn remove(&mut self, client_id: usize) {
-        self.clients.retain(|client| client.user_id != client_id)
+    pub fn remove(&mut self, client_id: u32) {
+        self.clients.retain(|client| client.session_id != client_id)
     }
 
-    pub async fn process_message(&mut self, msg: ClientServerMsg, client_id: usize) {
+    pub async fn process_message(&mut self, msg: ClientServerMsg, client_id: u32) {
         match msg {
             ClientServerMsg::Disconnect => {
                 self.remove(client_id);
@@ -87,7 +87,7 @@ impl ClientDb {
     }
 }
 
-pub fn spawn_client_process(mut socket: TcpStream, client_to_main: tokio::sync::mpsc::Sender<(usize, ClientServerMsg)>, user_id: usize, addr: SocketAddr) -> tokio::sync::mpsc::Sender<ServerClientMsg> {
+pub fn spawn_client_process(mut socket: TcpStream, client_to_main: tokio::sync::mpsc::Sender<(u32, ClientServerMsg)>, session_id: u32, addr: SocketAddr) -> tokio::sync::mpsc::Sender<ServerClientMsg> {
     let (main_to_client, mut client_from_main) = tokio::sync::mpsc::channel::<ServerClientMsg>(100);
     tokio::spawn(async move {
         let mut static_buffer = [0; 1024];
@@ -105,7 +105,7 @@ pub fn spawn_client_process(mut socket: TcpStream, client_to_main: tokio::sync::
                         }
                     };
                     if len == 0 {
-                        println!("client died: {user_id} {addr}");
+                        println!("client died: {session_id} {addr}");
                         break;
                     }
                     input_buffer.extend(&static_buffer[..len]);
@@ -113,7 +113,7 @@ pub fn spawn_client_process(mut socket: TcpStream, client_to_main: tokio::sync::
                     while let Some(msg) = ClientServerMsg::dequeue_and_decode(&mut input_buffer) {
                         match msg {
                             Ok(msg) => {
-                                client_to_main.send((user_id, msg)).await.unwrap();
+                                client_to_main.send((session_id, msg)).await.unwrap();
                             }
                             Err(e) => println!("error while decode msg: {e}")
                         }
@@ -123,7 +123,7 @@ pub fn spawn_client_process(mut socket: TcpStream, client_to_main: tokio::sync::
                     let msg = match result {
                         Some(msg) => msg,
                         None => {
-                            println!("client disconnected: {user_id} {addr}");
+                            println!("client disconnected: {session_id} {addr}");
                         break;
                         }
                     };

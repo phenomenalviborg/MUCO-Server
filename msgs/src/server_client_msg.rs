@@ -7,11 +7,11 @@ use crate::dequeue::dequeue_msg;
 
 #[derive(Debug, Clone)]
 pub enum ServerClientMsg {
-    AssignClientId (usize),
-    ClientConnected (usize),
-    ClientDisconnected (usize),
-    BroadcastBytes (usize, Vec<u8>),
-    BinaryMessageFrom (usize, Vec<u8>),
+    AssignSessionId (u32),
+    ClientConnected (u32),
+    ClientDisconnected (u32),
+    BroadcastBytes (u32, Vec<u8>),
+    BinaryMessageFrom (u32, Vec<u8>),
 }
 
 impl ServerClientMsg {
@@ -30,24 +30,24 @@ impl ServerClientMsg {
 
         let msg = match msg_type_index {
             0 => {
-                let client_id = rdr.read_u32::<LittleEndian>().unwrap() as usize;
-                ServerClientMsg::AssignClientId(client_id)
+                let session_id = rdr.read_u32::<LittleEndian>().unwrap();
+                ServerClientMsg::AssignSessionId(session_id)
             }
             1 => {
-                let client_id = rdr.read_u32::<LittleEndian>().unwrap() as usize;
-                ServerClientMsg::ClientConnected(client_id)
+                let session_id = rdr.read_u32::<LittleEndian>().unwrap();
+                ServerClientMsg::ClientConnected(session_id)
             }
             2 => {
-                let client_id = rdr.read_u32::<LittleEndian>().unwrap() as usize;
-                ServerClientMsg::ClientDisconnected(client_id)
+                let session_id = rdr.read_u32::<LittleEndian>().unwrap();
+                ServerClientMsg::ClientDisconnected(session_id)
             }
             3 => {
-                let sender = rdr.read_u32::<LittleEndian>().unwrap() as usize;
+                let sender = rdr.read_u32::<LittleEndian>().unwrap();
                 let bs = input_buffer[begin+4..].to_vec();
                 ServerClientMsg::BroadcastBytes (sender, bs)
             }
             4 => {
-                let sender = rdr.read_u32::<LittleEndian>().unwrap() as usize;
+                let sender = rdr.read_u32::<LittleEndian>().unwrap();
                 let bs = input_buffer[begin+4..].to_vec();
                 ServerClientMsg::BinaryMessageFrom (sender, bs)
             }
@@ -61,7 +61,7 @@ impl ServerClientMsg {
 
     pub fn pack(&self, wtr: &mut impl Write) {
         match self {
-            ServerClientMsg::AssignClientId (id) => {
+            ServerClientMsg::AssignSessionId (id) => {
                 wtr.write_u32::<LittleEndian>(8).unwrap();
                 wtr.write_u32::<LittleEndian>(0).unwrap();
                 wtr.write_u32::<LittleEndian>(*id as u32).unwrap();

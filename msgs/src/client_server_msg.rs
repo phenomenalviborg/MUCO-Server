@@ -10,7 +10,7 @@ pub enum ClientServerMsg {
     Disconnect,
     BroadcastBytesAll (Vec<u8>),
     BroadcastBytesOther (Vec<u8>),
-    BinaryMessageTo (usize, Vec<u8>),
+    BinaryMessageTo (u32, Vec<u8>),
     SetClientType (ClientType),
 }
 
@@ -41,7 +41,7 @@ impl ClientServerMsg {
                 ClientServerMsg::BroadcastBytesOther (bs)
             }
             3 => {
-                let address = rdr.read_u32::<LittleEndian>().unwrap() as usize;
+                let address = rdr.read_u32::<LittleEndian>().unwrap();
                 let bs = input_buffer[begin+4..].to_vec();
                 ClientServerMsg::BinaryMessageTo (address, bs)
             }

@@ -17,7 +17,7 @@ async fn main() {
     let my_local_ip = local_ip().unwrap();
     println!("Server Started at ip: {my_local_ip}:{port}");
 
-    let (client_to_main, mut main_from_client) = tokio::sync::mpsc::channel::<(usize, ClientServerMsg)>(100);
+    let (client_to_main, mut main_from_client) = tokio::sync::mpsc::channel::<(u32, ClientServerMsg)>(100);
 
     let mut client_db = ClientDb::new();
 
@@ -28,8 +28,8 @@ async fn main() {
                 client_db.new_client(socket, addr, client_to_main.clone()).await;
             }
             result = main_from_client.recv() => {
-                let (client_id, msg) = result.unwrap();
-                client_db.process_message(msg, client_id).await;
+                let (session_id, msg) = result.unwrap();
+                client_db.process_message(msg, session_id).await;
             }
         }
     }
