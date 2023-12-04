@@ -104,8 +104,8 @@ pub fn spawn_client_process(mut socket: TcpStream, client_to_main: tokio::sync::
                     let msg = match result {
                         Some(msg) => msg,
                         None => {
-                            println!("msg error");
-                            continue;
+                            println!("client disconnected: {user_id} {addr}");
+                        break;
                         }
                     };
 
