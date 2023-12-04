@@ -1,12 +1,12 @@
 use std::net::{Ipv4Addr, SocketAddr, IpAddr};
 
 use local_ip_address::local_ip;
+use msgs::ClientServerMsg;
 use tokio::net::TcpListener;
-use crate::{msgs::ClientServerMsg, client_db::ClientDb};
+use crate::client_db::ClientDb;
 
 mod client_db;
 mod client;
-mod msgs;
 
 #[tokio::main]
 async fn main() {

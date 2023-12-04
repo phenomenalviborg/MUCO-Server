@@ -1,4 +1,4 @@
-use crate::msgs::{ServerClientMsg, ClientType};
+use msgs::{ClientType, ServerClientMsg};
 
 pub struct Client {
     pub user_id: usize,

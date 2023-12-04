@@ -1,0 +1,8 @@
+[package]
+name = "msgs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+byteorder = { workspace = true }
+anyhow = { workspace = true }

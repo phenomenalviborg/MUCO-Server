@@ -1,10 +1,14 @@
-[package]
-name = "muco_server_rust"
-version = "0.1.0"
-edition = "2021"
+[workspace]
 
-[dependencies]
-tokio = { version = "1", features = ["full"] }
-byteorder = "1.4.3"
-local-ip-address = "0.5.6"
+resolver = "2"
+
+members = [
+    "msgs",
+    "server",
+]
+
+[workspace.dependencies]
+tokio = { version = "1.0" }
+byteorder = "1.4"
+local-ip-address = "0.5"
 anyhow = "1.0"
