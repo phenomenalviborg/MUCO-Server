@@ -1,4 +1,4 @@
-use msgs::{ClientServerMsg, ServerClientMsg};
+use msgs::{server_client_msg::ServerClientMsg, client_server_msg::ClientServerMsg};
 use tokio::{net::TcpStream, io::{AsyncReadExt, AsyncWriteExt}};
 
 pub struct Server {

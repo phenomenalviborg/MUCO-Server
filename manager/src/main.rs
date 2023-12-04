@@ -2,7 +2,7 @@ use std::{sync::Arc, collections::HashMap, convert::Infallible};
 
 use console_input::console_input_thread;
 use context::{MucoContextRef, MucoContext};
-use msgs::{ClientType, ClientServerMsg};
+use msgs::{client_server_msg::ClientServerMsg, client_type::ClientType};
 use server::Server;
 use status::Status;
 use tokio::sync::{mpsc, RwLock};

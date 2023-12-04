@@ -1,4 +1,4 @@
-use msgs::{ClientType, ServerClientMsg};
+use msgs::{client_type::ClientType, server_client_msg::ServerClientMsg};
 
 pub struct Client {
     pub user_id: usize,

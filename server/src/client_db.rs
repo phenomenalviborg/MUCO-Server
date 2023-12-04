@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use msgs::{ClientServerMsg, ServerClientMsg, ClientType};
+use msgs::{client_server_msg::ClientServerMsg, server_client_msg::ServerClientMsg, client_type::ClientType};
 use tokio::{net::TcpStream, io::{AsyncReadExt, AsyncWriteExt}};
 
 use crate::client::Client;

@@ -1,7 +1,7 @@
 use std::net::{Ipv4Addr, SocketAddr, IpAddr};
 
 use local_ip_address::local_ip;
-use msgs::ClientServerMsg;
+use msgs::client_server_msg::ClientServerMsg;
 use tokio::net::TcpListener;
 use crate::client_db::ClientDb;
 
