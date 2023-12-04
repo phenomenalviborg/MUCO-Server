@@ -1,9 +1,23 @@
 use std::io::{Cursor, Write};
 
-use anyhow::{Context, bail};
+use anyhow::{bail, Context};
 use byteorder::{WriteBytesExt, LittleEndian, ReadBytesExt};
 
-use crate::client::ClientType;
+#[derive(Debug, Clone, Copy)]
+pub enum ClientType {
+    Player,
+    Manager,
+}
+
+impl ClientType {
+    pub fn from_u32(index: u32) -> Option<ClientType> {
+        match index {
+            0 => Some(ClientType::Player),
+            1 => Some(ClientType::Manager),
+            _ => None,
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum ClientServerMsg {

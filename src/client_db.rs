@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 
 use tokio::{net::TcpStream, io::{AsyncReadExt, AsyncWriteExt}};
 
-use crate::{client::{Client, ClientType}, msgs::{ClientServerMsg, ServerClientMsg}};
+use crate::{client::Client, msgs::{ClientServerMsg, ServerClientMsg, ClientType}};
 
 pub struct ClientDb {
     pub user_id_counter: usize,
