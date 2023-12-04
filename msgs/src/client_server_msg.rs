@@ -8,11 +8,8 @@ use crate::{client_type::ClientType, dequeue::dequeue_msg};
 #[derive(Debug, Clone)]
 pub enum ClientServerMsg {
     Disconnect,
-    //BroadcastChatMessage
     BroadcastBytesAll (Vec<u8>),
     BroadcastBytesOther (Vec<u8>),
-    //StoreData
-    //RetrieveData
     BinaryMessageTo (usize, Vec<u8>),
     SetClientType (ClientType),
 }
@@ -35,20 +32,20 @@ impl ClientServerMsg {
             0 => {
                 ClientServerMsg::Disconnect
             }
-            2 => {
+            1 => {
                 let bs = input_buffer[begin..].to_vec();
                 ClientServerMsg::BroadcastBytesAll (bs)
             }
-            3 => {
+            2 => {
                 let bs = input_buffer[begin..].to_vec();
                 ClientServerMsg::BroadcastBytesOther (bs)
             }
-            6 => {
+            3 => {
                 let address = rdr.read_u32::<LittleEndian>().unwrap() as usize;
                 let bs = input_buffer[begin+4..].to_vec();
                 ClientServerMsg::BinaryMessageTo (address, bs)
             }
-            7 => {
+            4 => {
                 let client_type_index = rdr.read_u32::<LittleEndian>().unwrap();
                 let client_type = ClientType::from_u32(client_type_index).context("unsupported client id")?;
                 ClientServerMsg::SetClientType (client_type)
@@ -69,23 +66,23 @@ impl ClientServerMsg {
             }
             ClientServerMsg::BroadcastBytesAll(bytes) => {
                 wtr.write_u32::<LittleEndian>(4 + bytes.len() as u32).unwrap();
-                wtr.write_u32::<LittleEndian>(2).unwrap();
+                wtr.write_u32::<LittleEndian>(1).unwrap();
                 wtr.write_all(bytes).unwrap();
             }
             ClientServerMsg::BroadcastBytesOther(bytes) => {
                 wtr.write_u32::<LittleEndian>(4 + bytes.len() as u32).unwrap();
-                wtr.write_u32::<LittleEndian>(3).unwrap();
+                wtr.write_u32::<LittleEndian>(2).unwrap();
                 wtr.write_all(bytes).unwrap();
             }
             ClientServerMsg::BinaryMessageTo(address, bytes) => {
                 wtr.write_u32::<LittleEndian>(8 + bytes.len() as u32).unwrap();
-                wtr.write_u32::<LittleEndian>(6).unwrap();
+                wtr.write_u32::<LittleEndian>(3).unwrap();
                 wtr.write_u32::<LittleEndian>(*address as u32).unwrap();
                 wtr.write_all(bytes).unwrap();
             }
             ClientServerMsg::SetClientType(client_type) => {
                 wtr.write_u32::<LittleEndian>(8).unwrap();
-                wtr.write_u32::<LittleEndian>(7).unwrap();
+                wtr.write_u32::<LittleEndian>(4).unwrap();
                 wtr.write_u32::<LittleEndian>(client_type.as_u32()).unwrap();
             }
         }

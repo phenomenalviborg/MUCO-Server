@@ -10,9 +10,7 @@ pub enum ServerClientMsg {
     AssignClientId (usize),
     ClientConnected (usize),
     ClientDisconnected (usize),
-    //BroadcastChatMessage
     BroadcastBytes (usize, Vec<u8>),
-    //Data
     BinaryMessageFrom (usize, Vec<u8>),
 }
 
@@ -43,12 +41,12 @@ impl ServerClientMsg {
                 let client_id = rdr.read_u32::<LittleEndian>().unwrap() as usize;
                 ServerClientMsg::ClientDisconnected(client_id)
             }
-            4 => {
+            3 => {
                 let sender = rdr.read_u32::<LittleEndian>().unwrap() as usize;
                 let bs = input_buffer[begin+4..].to_vec();
                 ServerClientMsg::BroadcastBytes (sender, bs)
             }
-            6 => {
+            4 => {
                 let sender = rdr.read_u32::<LittleEndian>().unwrap() as usize;
                 let bs = input_buffer[begin+4..].to_vec();
                 ServerClientMsg::BinaryMessageFrom (sender, bs)
@@ -80,13 +78,13 @@ impl ServerClientMsg {
             }
             ServerClientMsg::BroadcastBytes (sender, bytes) => {
                 wtr.write_u32::<LittleEndian>(8 + bytes.len() as u32).unwrap();
-                wtr.write_u32::<LittleEndian>(4).unwrap();
+                wtr.write_u32::<LittleEndian>(3).unwrap();
                 wtr.write_u32::<LittleEndian>(*sender as u32).unwrap();
                 wtr.write_all(bytes).unwrap();
             }
             ServerClientMsg::BinaryMessageFrom (sender, bytes) => {
                 wtr.write_u32::<LittleEndian>(8 + bytes.len() as u32).unwrap();
-                wtr.write_u32::<LittleEndian>(6).unwrap();
+                wtr.write_u32::<LittleEndian>(4).unwrap();
                 wtr.write_u32::<LittleEndian>(*sender as u32).unwrap();
                 wtr.write_all(bytes).unwrap();
             }
