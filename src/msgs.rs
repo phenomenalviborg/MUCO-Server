@@ -3,12 +3,6 @@ use std::io::{Cursor, Write};
 use byteorder::{WriteBytesExt, LittleEndian, ReadBytesExt};
 
 #[derive(Debug, Clone)]
-pub enum IntercomMsg {
-    NewClient (usize),
-    ClientServerMsg (usize, ClientServerMsg)
-}
-
-#[derive(Debug, Clone)]
 pub enum ClientServerMsg {
     Disconnect,
     //BroadcastChatMessage
