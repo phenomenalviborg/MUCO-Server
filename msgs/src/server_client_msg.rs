@@ -72,7 +72,7 @@ impl ServerClientMsg {
             }
             ServerClientMsg::BinaryMessageFrom (sender, bytes) => {
                 wtr.write_u32::<LittleEndian>(8 + bytes.len() as u32).unwrap();
-                wtr.write_u32::<LittleEndian>(4).unwrap();
+                wtr.write_u32::<LittleEndian>(3).unwrap();
                 wtr.write_u32::<LittleEndian>(*sender as u32).unwrap();
                 wtr.write_all(bytes).unwrap();
             }
