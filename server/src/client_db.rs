@@ -28,52 +28,42 @@ impl ClientDb {
         println!("accepted client: {session_id} {addr}");
     }
 
-    pub fn get(&self, session_id: u32) -> Option<&Client> {
-        self.clients.iter().find(|client| client.session_id == session_id)
-    }
-    
     pub fn get_mut(&mut self, session_id: u32) -> Option<&mut Client> {
         self.clients.iter_mut().find(|client| client.session_id == session_id)
     }
     
-    pub fn all_clients(&self) -> impl Iterator<Item = &Client> {
-        self.clients.iter()
-    }
-
-    pub fn other_clients(&self, session_id: u32) -> impl Iterator<Item = &Client> {
-        self.clients.iter().filter(move |client| client.session_id != session_id)
-    }
-
     pub fn remove(&mut self, session_id: u32) {
         self.clients.retain(|client| client.session_id != session_id)
+    }
+
+    pub async fn send_server_client_msg(&mut self, address: Address, msg: ServerClientMsg) {
+        let mut i = 0;
+        while i < self.clients.len() {
+            let client = &self.clients[i];
+            if address.includes(client.session_id) {
+                let result = client.main_to_client.send(msg.clone()).await;
+                match result {
+                    Ok(_) => {},
+                    Err(e) => {
+                        println!("error sending message: {e}");
+                        println!("removing client: {}", client.session_id);
+                        self.clients.remove(i);
+                        continue;
+                    }
+                }
+            }
+            i += 1;
+        }
     }
 
     pub async fn process_message(&mut self, msg: ClientServerMsg, session_id: u32) {
         match msg {
             ClientServerMsg::Disconnect => {
                 self.remove(session_id);
-                for client in self.all_clients() {
-                    client.main_to_client.send(ServerClientMsg::ClientDisconnected(session_id)).await.unwrap();
-                }
+                self.send_server_client_msg(Address::All, ServerClientMsg::ClientDisconnected(session_id)).await;
             }
-            ClientServerMsg::BinaryMessageTo(addresse, bytes) => {
-                match addresse {
-                    Address::Client (session_id) => {
-                        let client = self.get(session_id).unwrap();
-                        client.main_to_client.send(ServerClientMsg::BinaryMessageFrom(session_id, bytes.clone())).await.unwrap();
-                    }
-                    Address::All => {
-                        for client in self.all_clients() {
-                            client.main_to_client.send(ServerClientMsg::BinaryMessageFrom(session_id, bytes.clone())).await.unwrap();
-                        }
-                    }
-                    Address::Other => {
-                        for client in self.other_clients(session_id) {
-                            client.main_to_client.send(ServerClientMsg::BinaryMessageFrom(session_id, bytes.clone())).await.unwrap();
-                        }
-                    }
-                }
-                
+            ClientServerMsg::BinaryMessageTo(address, bytes) => {
+                self.send_server_client_msg(address, ServerClientMsg::BinaryMessageFrom(session_id, bytes)).await;
             }
             ClientServerMsg::SetClientType(client_type) => {
                 let client = self.get_mut(session_id).unwrap();
@@ -81,9 +71,7 @@ impl ClientDb {
 
                 match client_type {
                     ClientType::Player => {
-                        for client in &mut self.other_clients(session_id) {
-                            client.main_to_client.send(ServerClientMsg::ClientConnected(session_id)).await.unwrap();
-                        }
+                        self.send_server_client_msg(Address::Other (session_id), ServerClientMsg::ClientConnected(session_id)).await;
                     }
                     ClientType::Manager => {}
                 }
@@ -115,7 +103,7 @@ pub fn spawn_client_process(mut socket: TcpStream, client_to_main: tokio::sync::
                     }
                     input_buffer.extend(&static_buffer[..len]);
                     
-                    while let Some(msg) = ClientServerMsg::dequeue_and_decode(&mut input_buffer) {
+                    while let Some(msg) = ClientServerMsg::dequeue_and_decode(&mut input_buffer, session_id) {
                         match msg {
                             Ok(msg) => {
                                 client_to_main.send((session_id, msg)).await.unwrap();

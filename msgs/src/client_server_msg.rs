@@ -6,11 +6,21 @@ use byteorder::{LittleEndian, WriteBytesExt, ReadBytesExt};
 use crate::{client_type::ClientType, dequeue::dequeue_msg};
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Address {
     Client (u32),
     All,
-    Other,
+    Other (u32),
+}
+
+impl Address {
+    pub fn includes(self, connection_id: u32) -> bool {
+        match self {
+            Address::Client (addressed) => connection_id == addressed,
+            Address::All => true,
+            Address::Other (sender) => connection_id != sender,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -21,14 +31,14 @@ pub enum ClientServerMsg {
 }
 
 impl ClientServerMsg {
-    pub fn dequeue_and_decode(input_buffer: &mut Vec<u8>) -> Option<anyhow::Result<ClientServerMsg>> {
+    pub fn dequeue_and_decode(input_buffer: &mut Vec<u8>, sender: u32) -> Option<anyhow::Result<ClientServerMsg>> {
         let Some((begin, end)) = dequeue_msg(input_buffer) else { return None };
-        let msg = Self::decode(&input_buffer[begin..end]);
+        let msg = Self::decode(&input_buffer[begin..end], sender);
         input_buffer.drain(..end);
         Some(msg)
     }
 
-    pub fn decode(input_buffer: &[u8]) -> anyhow::Result<ClientServerMsg> {
+    pub fn decode(input_buffer: &[u8], sender: u32) -> anyhow::Result<ClientServerMsg> {
         let mut rdr = Cursor::new(&input_buffer);
         let msg_type_index = rdr.read_u32::<LittleEndian>().unwrap();
 
@@ -44,7 +54,7 @@ impl ClientServerMsg {
             }
             2 => {
                 let bs = input_buffer[begin..].to_vec();
-                ClientServerMsg::BinaryMessageTo (Address::Other, bs)
+                ClientServerMsg::BinaryMessageTo (Address::Other (sender), bs)
             }
             3 => {
                 let session_id = rdr.read_u32::<LittleEndian>().unwrap();
@@ -83,7 +93,7 @@ impl ClientServerMsg {
                         wtr.write_u32::<LittleEndian>(1).unwrap();
                         wtr.write_all(bytes).unwrap();
                     }
-                    Address::Other => {
+                    Address::Other (_) => {
                         wtr.write_u32::<LittleEndian>(4 + bytes.len() as u32).unwrap();
                         wtr.write_u32::<LittleEndian>(2).unwrap();
                         wtr.write_all(bytes).unwrap();
