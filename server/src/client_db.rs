@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use msgs::{client_server_msg::ClientServerMsg, server_client_msg::ServerClientMsg, client_type::ClientType};
+use msgs::{client_server_msg::{ClientServerMsg, Address}, server_client_msg::ServerClientMsg, client_type::ClientType};
 use tokio::{net::TcpStream, io::{AsyncReadExt, AsyncWriteExt}};
 
 use crate::client::Client;
@@ -28,24 +28,24 @@ impl ClientDb {
         println!("accepted client: {session_id} {addr}");
     }
 
-    pub fn get(&self, client_id: u32) -> Option<&Client> {
-        self.clients.iter().find(|client| client.session_id == client_id)
+    pub fn get(&self, session_id: u32) -> Option<&Client> {
+        self.clients.iter().find(|client| client.session_id == session_id)
     }
     
-    pub fn get_mut(&mut self, client_id: u32) -> Option<&mut Client> {
-        self.clients.iter_mut().find(|client| client.session_id == client_id)
+    pub fn get_mut(&mut self, session_id: u32) -> Option<&mut Client> {
+        self.clients.iter_mut().find(|client| client.session_id == session_id)
     }
     
     pub fn all_clients(&self) -> impl Iterator<Item = &Client> {
         self.clients.iter()
     }
 
-    pub fn other_clients(&self, client_id: u32) -> impl Iterator<Item = &Client> {
-        self.clients.iter().filter(move |client| client.session_id != client_id)
+    pub fn other_clients(&self, session_id: u32) -> impl Iterator<Item = &Client> {
+        self.clients.iter().filter(move |client| client.session_id != session_id)
     }
 
-    pub fn remove(&mut self, client_id: u32) {
-        self.clients.retain(|client| client.session_id != client_id)
+    pub fn remove(&mut self, session_id: u32) {
+        self.clients.retain(|client| client.session_id != session_id)
     }
 
     pub async fn process_message(&mut self, msg: ClientServerMsg, session_id: u32) {
@@ -56,19 +56,24 @@ impl ClientDb {
                     client.main_to_client.send(ServerClientMsg::ClientDisconnected(session_id)).await.unwrap();
                 }
             }
-            ClientServerMsg::BroadcastBytesAll(bytes) => {
-                for client in self.all_clients() {
-                    client.main_to_client.send(ServerClientMsg::BinaryMessageFrom(session_id, bytes.clone())).await.unwrap();
+            ClientServerMsg::BinaryMessageTo(addresse, bytes) => {
+                match addresse {
+                    Address::Client (session_id) => {
+                        let client = self.get(session_id).unwrap();
+                        client.main_to_client.send(ServerClientMsg::BinaryMessageFrom(session_id, bytes.clone())).await.unwrap();
+                    }
+                    Address::All => {
+                        for client in self.all_clients() {
+                            client.main_to_client.send(ServerClientMsg::BinaryMessageFrom(session_id, bytes.clone())).await.unwrap();
+                        }
+                    }
+                    Address::Other => {
+                        for client in self.other_clients(session_id) {
+                            client.main_to_client.send(ServerClientMsg::BinaryMessageFrom(session_id, bytes.clone())).await.unwrap();
+                        }
+                    }
                 }
-            }
-            ClientServerMsg::BroadcastBytesOther(bytes) => {
-                for client in self.other_clients(session_id) {
-                    client.main_to_client.send(ServerClientMsg::BinaryMessageFrom(session_id, bytes.clone())).await.unwrap();
-                }
-            }
-            ClientServerMsg::BinaryMessageTo(addressed, bytes) => {
-                let client = self.get(addressed).unwrap();
-                client.main_to_client.send(ServerClientMsg::BinaryMessageFrom(addressed, bytes.clone())).await.unwrap();
+                
             }
             ClientServerMsg::SetClientType(client_type) => {
                 let client = self.get_mut(session_id).unwrap();
