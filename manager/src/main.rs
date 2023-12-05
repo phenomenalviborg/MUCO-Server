@@ -96,7 +96,7 @@ async fn main() {
                 };
                 
                 match inter_client_msg {
-                    InterClientMsg::Interaction => {}
+                    InterClientMsg::_Interaction => {}
                     InterClientMsg::PlayerData (player_data_msg) => {
                         match player_data_msg {
                             PlayerDataMsg::Notify (player_data) => {
@@ -124,10 +124,10 @@ async fn main() {
                                 }
                             }
                             PlayerDataMsg::Set(_) => todo!(),
-                            PlayerDataMsg::Request => todo!(),
+                            PlayerDataMsg::_Request => todo!(),
                         }
                     }
-                    InterClientMsg::Ping => {}
+                    InterClientMsg::_Ping => {}
                 }
             }
         }

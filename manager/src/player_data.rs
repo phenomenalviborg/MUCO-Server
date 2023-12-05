@@ -14,11 +14,11 @@ pub enum PlayerAttribute {
 }
 
 impl PlayerAttribute {
-    pub fn decode(input_buffer: &[u8], sender: u32) -> anyhow::Result<PlayerAttribute> {
+    pub fn decode(input_buffer: &[u8], _sender: u32) -> anyhow::Result<PlayerAttribute> {
         let mut rdr = Cursor::new(&input_buffer);
         let msg_type_index = rdr.read_u32::<LittleEndian>().unwrap();
 
-        let begin = 4;
+        //let begin = 4;
 
         let msg = match msg_type_index {
             0 => {

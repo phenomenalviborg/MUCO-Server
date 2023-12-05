@@ -7,9 +7,9 @@ use crate::player_data_msg::PlayerDataMsg;
 
 #[derive(Debug)]
 pub enum InterClientMsg {
-    Interaction,
+    _Interaction,
     PlayerData (PlayerDataMsg),
-    Ping,
+    _Ping,
 }
 
 impl InterClientMsg {
@@ -34,14 +34,14 @@ impl InterClientMsg {
 
     pub fn pack(&self, wtr: &mut impl Write) {
         match self {
-            InterClientMsg::Interaction => {
+            InterClientMsg::_Interaction => {
                 todo!()
             }
             InterClientMsg::PlayerData(player_data_msg) => {
                 wtr.write_u32::<LittleEndian>(1).unwrap();
                 player_data_msg.pack(wtr);
             }
-            InterClientMsg::Ping => {
+            InterClientMsg::_Ping => {
                 todo!()
             }
         }

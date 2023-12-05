@@ -9,7 +9,7 @@ use crate::player_data::PlayerAttribute;
 pub enum PlayerDataMsg {
     Notify (PlayerAttribute),
     Set (PlayerAttribute),
-    Request,
+    _Request,
 }
 
 impl PlayerDataMsg {
@@ -39,7 +39,7 @@ impl PlayerDataMsg {
                 wtr.write_u32::<LittleEndian>(1).unwrap();
                 attribute.pack(wtr);
             }
-            PlayerDataMsg::Request => todo!(),
+            PlayerDataMsg::_Request => todo!(),
         }
     }
 }
