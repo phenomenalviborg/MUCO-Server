@@ -5,9 +5,10 @@ use byteorder::{LittleEndian, ReadBytesExt};
 
 #[derive(Debug)]
 pub enum PlayerData {
+    DeviceId (u32),
+    Color,
     Trans,
     Hands,
-    Color,
 }
 
 impl PlayerData {
@@ -18,9 +19,13 @@ impl PlayerData {
         let begin = 4;
 
         let msg = match msg_type_index {
-            0 => PlayerData::Trans,
-            1 => PlayerData::Hands,
-            2 => PlayerData::Color,
+            0 => {
+                let device_id = rdr.read_u32::<LittleEndian>().unwrap();
+                PlayerData::DeviceId(device_id)
+            }
+            1 => PlayerData::Color,
+            2 => PlayerData::Trans,
+            3 => PlayerData::Hands,
             type_index => {
                 bail!("unsupported player data type: {type_index}");
             }
@@ -31,9 +36,10 @@ impl PlayerData {
 
     pub fn pack(&self, wtr: &mut impl Write) {
         match self {
+            PlayerData::DeviceId (_) => todo!(),
+            PlayerData::Color => todo!(),
             PlayerData::Trans => todo!(),
             PlayerData::Hands => todo!(),
-            PlayerData::Color => todo!(),
         }
     }
 }
