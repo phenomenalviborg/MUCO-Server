@@ -3,22 +3,13 @@ use std::io::{Cursor, Write};
 use anyhow::bail;
 use byteorder::{LittleEndian, ReadBytesExt};
 
+use crate::player_data_msg::PlayerDataMsg;
+
+#[derive(Debug)]
 pub enum InterClientMsg {
     Interaction,
     PlayerData (PlayerDataMsg),
     Ping,
-}
-
-pub enum PlayerData {
-    Trans,
-    Hands,
-    Color,
-}
-
-pub enum PlayerDataMsg {
-    Notify (PlayerData),
-    Set (PlayerData),
-    Request,
 }
 
 impl InterClientMsg {
@@ -29,8 +20,12 @@ impl InterClientMsg {
         let begin = 4;
 
         let msg = match msg_type_index {
+            1 => {
+                let player_data_msg = PlayerDataMsg::decode(&input_buffer[begin..], sender)?;
+                InterClientMsg::PlayerData(player_data_msg)
+            }
             type_index => {
-                bail!("unsupported msg type: {type_index}");
+                bail!("unsupported inter client msg type: {type_index}");
             }
         };
 

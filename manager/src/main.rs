@@ -2,6 +2,7 @@ use std::{sync::Arc, collections::HashMap, convert::Infallible};
 
 use console_input::console_input_thread;
 use context::{MucoContextRef, MucoContext};
+use inter_client_msg::InterClientMsg;
 use msgs::{client_server_msg::ClientServerMsg, client_type::ClientType, server_client_msg::ServerClientMsg};
 use server::Server;
 use status::Status;
@@ -15,6 +16,8 @@ mod context;
 mod handler;
 mod headset_data;
 mod inter_client_msg;
+mod player_data_msg;
+mod player_data;
 mod server;
 mod status;
 mod ws;
@@ -74,8 +77,16 @@ async fn main() {
             ServerClientMsg::ClientDisconnected(session_id) => {
                 println!("client disconnected: {session_id}");
             }
-            ServerClientMsg::InterClient(sender, data) => {
-                println!("inter client msg from {sender}: {data:?}");
+            ServerClientMsg::InterClient(sender, input_buffer) => {
+                let result = InterClientMsg::decode(&input_buffer, sender);
+                let inter_client_msg = match result {
+                    Ok(msg) => msg,
+                    Err(e) => {
+                        println!("error while decodeing msg: {e}");
+                        return;
+                    }
+                };
+                println!("inter client msg {inter_client_msg:?}")
             }
         }
     }
