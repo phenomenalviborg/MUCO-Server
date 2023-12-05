@@ -4,10 +4,14 @@ use console_input::console_input_thread;
 use context::{MucoContextRef, MucoContext};
 use inter_client_msg::InterClientMsg;
 use msgs::{client_server_msg::ClientServerMsg, client_type::ClientType, server_client_msg::ServerClientMsg};
+use player_data::PlayerAttribute;
+use player_data_msg::PlayerDataMsg;
 use server::Server;
 use status::Status;
 use tokio::sync::{mpsc, RwLock};
 use warp::{filters::ws::Message, reject::Rejection, Filter};
+
+use crate::headset_data::HeadsetData;
 
 mod color;
 mod connection_status;
@@ -37,6 +41,7 @@ async fn main() {
     let status = Status::load(SAVE_DATA_PATH).unwrap_or(Status::new());
     
     let context = MucoContext {
+        connection_id_to_player: HashMap::new(),
         clients: HashMap::new(),
         status,
     };
@@ -86,7 +91,34 @@ async fn main() {
                         return;
                     }
                 };
-                println!("inter client msg {inter_client_msg:?}")
+                
+                match inter_client_msg {
+                    InterClientMsg::Interaction => {}
+                    InterClientMsg::PlayerData (player_data_msg) => {
+                        match player_data_msg {
+                            PlayerDataMsg::Notify (player_data) => {
+                                match player_data {
+                                    PlayerAttribute::DeviceId(device_id) => {
+                                        let device_id_string = device_id.to_string();
+                                        let mut context = context_ref.write().await;
+                                        if !context.status.headsets.contains_key(&device_id_string) {
+                                            let new_player_data = HeadsetData::new();
+                                            context.status.headsets.insert(device_id_string.clone(), new_player_data);
+                                        }
+                                        context.connection_id_to_player.insert(sender, device_id_string);
+                                        context.update_clients().await;
+                                    }
+                                    PlayerAttribute::Color => println!("received player color"),
+                                    PlayerAttribute::Trans => println!("received player trans"),
+                                    PlayerAttribute::Hands => println!("received player hands"),
+                                }
+                            }
+                            PlayerDataMsg::Set(_) => todo!(),
+                            PlayerDataMsg::Request => todo!(),
+                        }
+                    }
+                    InterClientMsg::Ping => {}
+                }
             }
         }
     }

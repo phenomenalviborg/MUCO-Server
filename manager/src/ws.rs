@@ -103,20 +103,20 @@ pub async fn process_client_msg(client_msg: ClientMsg, context_ref: &MucoContext
             let duration_since_unix_epoch = SystemTime::now().duration_since(UNIX_EPOCH)?;
             let session_start_time = duration_since_unix_epoch.as_secs() as i64;
             let mut context = context_ref.write().await;
-            let headset = context.get_headset_mut(&unique_device_id)?;
+            let headset = context.get_headset_mut(unique_device_id)?;
             headset.temp.session_duration = DEFAULT_SESSION_DURATION;
             headset.temp.session_state = SessionState::Running(session_start_time);
             UpdateClients
         } 
         ExtendSession(unique_device_id, added_seconds) => {
             let mut context = context_ref.write().await;
-            let headset = context.get_headset_mut(&unique_device_id)?;
+            let headset = context.get_headset_mut(unique_device_id)?;
             headset.temp.session_duration += added_seconds;
             UpdateClients
         }
         Pause(unique_device_id) => {
             let mut context = context_ref.write().await;
-            let headset = context.get_headset_mut(&unique_device_id)?;
+            let headset = context.get_headset_mut(unique_device_id)?;
             match headset.temp.session_state {
                 SessionState::Running(start_time) => {
                     let duration_since_unix_epoch = SystemTime::now().duration_since(UNIX_EPOCH)?;
@@ -130,7 +130,7 @@ pub async fn process_client_msg(client_msg: ClientMsg, context_ref: &MucoContext
         }
         Unpause(unique_device_id) => {
             let mut context = context_ref.write().await;
-            let headset = context.get_headset_mut(&unique_device_id)?;
+            let headset = context.get_headset_mut(unique_device_id)?;
             match headset.temp.session_state {
                 SessionState::Running(_) => Nothing,
                 SessionState::Paused(elapsed_time) => {

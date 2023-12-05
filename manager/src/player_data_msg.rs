@@ -3,12 +3,12 @@ use std::io::{Cursor, Write};
 use anyhow::bail;
 use byteorder::{LittleEndian, ReadBytesExt};
 
-use crate::player_data::PlayerData;
+use crate::player_data::PlayerAttribute;
 
 #[derive(Debug)]
 pub enum PlayerDataMsg {
-    Notify (PlayerData),
-    Set (PlayerData),
+    Notify (PlayerAttribute),
+    Set (PlayerAttribute),
     Request,
 }
 
@@ -21,7 +21,7 @@ impl PlayerDataMsg {
 
         let msg = match msg_type_index {
             0 => {
-                let data = PlayerData::decode(&input_buffer[begin..], sender)?;
+                let data = PlayerAttribute::decode(&input_buffer[begin..], sender)?;
                 PlayerDataMsg::Notify(data)
             }
             type_index => {

@@ -1,13 +1,8 @@
 use std::io::stdin;
 use std::thread;
 
-use uuid::Uuid;
-
-use crate::{SAVE_DATA_PATH, DEFAULT_SESSION_DURATION};
-use crate::color::Color;
-use crate::connection_status::ConnectionStatus;
+use crate::SAVE_DATA_PATH;
 use crate::context::MucoContextRef;
-use crate::headset_data::{PersistentHeadsetData, TempHeadsetData, HeadsetData, SessionState};
 use crate::status::Status;
 use crate::ws::{process_client_msg, ServerResponse};
 
@@ -35,28 +30,6 @@ pub async fn process_console_input(input: &str, context_ref: &MucoContextRef) ->
     };
 
     match message_type {
-        "add" => {
-            let uuid = Uuid::new_v4().simple().to_string();
-            let unique_device_id =uuid;
-            let mut context = context_ref.write().await;
-            let persistant = PersistentHeadsetData {
-                color: Color { r: 0.0, g: 0.0, b: 1.0, a: 1.0 },
-                name: "HeadsetName".to_string(),
-            };
-            let temp = TempHeadsetData {
-                connection_status: ConnectionStatus::Connected,
-                session_state: SessionState::Paused(0),
-                session_duration: DEFAULT_SESSION_DURATION,
-            };
-
-            let data = HeadsetData {
-                persistent: persistant,
-                temp,
-            };
-
-            context.status.headsets.insert(unique_device_id.to_string(), data);
-            context.update_clients().await;
-        }
         "save" => {
             let status = context_ref.read().await.status.clone();
             status.save(SAVE_DATA_PATH)?;

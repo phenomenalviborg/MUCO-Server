@@ -4,15 +4,15 @@ use anyhow::bail;
 use byteorder::{LittleEndian, ReadBytesExt};
 
 #[derive(Debug)]
-pub enum PlayerData {
+pub enum PlayerAttribute {
     DeviceId (u32),
     Color,
     Trans,
     Hands,
 }
 
-impl PlayerData {
-    pub fn decode(input_buffer: &[u8], sender: u32) -> anyhow::Result<PlayerData> {
+impl PlayerAttribute {
+    pub fn decode(input_buffer: &[u8], sender: u32) -> anyhow::Result<PlayerAttribute> {
         let mut rdr = Cursor::new(&input_buffer);
         let msg_type_index = rdr.read_u32::<LittleEndian>().unwrap();
 
@@ -21,11 +21,11 @@ impl PlayerData {
         let msg = match msg_type_index {
             0 => {
                 let device_id = rdr.read_u32::<LittleEndian>().unwrap();
-                PlayerData::DeviceId(device_id)
+                PlayerAttribute::DeviceId(device_id)
             }
-            1 => PlayerData::Color,
-            2 => PlayerData::Trans,
-            3 => PlayerData::Hands,
+            1 => PlayerAttribute::Color,
+            2 => PlayerAttribute::Trans,
+            3 => PlayerAttribute::Hands,
             type_index => {
                 bail!("unsupported player data type: {type_index}");
             }
@@ -36,10 +36,10 @@ impl PlayerData {
 
     pub fn pack(&self, wtr: &mut impl Write) {
         match self {
-            PlayerData::DeviceId (_) => todo!(),
-            PlayerData::Color => todo!(),
-            PlayerData::Trans => todo!(),
-            PlayerData::Hands => todo!(),
+            PlayerAttribute::DeviceId (_) => todo!(),
+            PlayerAttribute::Color => todo!(),
+            PlayerAttribute::Trans => todo!(),
+            PlayerAttribute::Hands => todo!(),
         }
     }
 }
