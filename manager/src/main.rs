@@ -4,7 +4,7 @@ use connection_status::ConnectionStatus;
 use console_input::console_input_thread;
 use context::{MucoContextRef, MucoContext};
 use inter_client_msg::InterClientMsg;
-use msgs::{client_server_msg::ClientServerMsg, client_type::ClientType, server_client_msg::ServerClientMsg};
+use msgs::{client_server_msg::{ClientServerMsg, Address}, client_type::ClientType, server_client_msg::ServerClientMsg};
 use player_data::PlayerAttribute;
 use player_data_msg::PlayerDataMsg;
 use server::Server;
@@ -40,8 +40,14 @@ pub struct Client {
 #[tokio::main]
 async fn main() {
     let status = Status::load(SAVE_DATA_PATH).unwrap_or(Status::new());
+
+    let (server_to_main, mut main_from_server) = tokio::sync::mpsc::channel(100);
+    let server = Server::new(server_to_main);
+
+    server.main_to_server.send(ClientServerMsg::SetClientType (ClientType::Manager)).await.unwrap();
     
     let context = MucoContext {
+        server,
         connection_id_to_player: HashMap::new(),
         clients: HashMap::new(),
         status,
@@ -65,11 +71,6 @@ async fn main() {
     tokio::spawn(async move {
         warp::serve(routes).run(([127, 0, 0, 1], 8000)).await;
     });
-
-    let (server_to_main, mut main_from_server) = tokio::sync::mpsc::channel(100);
-    let server = Server::new(server_to_main);
-
-    server.main_to_server.send(ClientServerMsg::SetClientType (ClientType::Manager)).await.unwrap();
 
     loop {
         let Some(msg) = main_from_server.recv().await else { break };
@@ -108,11 +109,16 @@ async fn main() {
                                             context.status.headsets.insert(device_id_string.clone(), new_player_data);
                                         }
                                         let headset = context.status.headsets.get_mut(&device_id_string).unwrap();
-                                        headset.temp.connection_status = ConnectionStatus::Connected;
+                                        headset.temp.connection_status = ConnectionStatus::Connected (sender);
+                                        let headset_color = headset.persistent.color;
                                         context.connection_id_to_player.insert(sender, device_id_string);
                                         context.update_clients().await;
+                                        let msg = InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Color (headset_color)));
+                                        let mut bytes = Vec::new();
+                                        msg.pack(&mut bytes);
+                                        context.server.main_to_server.send(ClientServerMsg::BinaryMessageTo (Address::Client(sender), bytes)).await.unwrap();
                                     }
-                                    PlayerAttribute::Color => println!("received player color"),
+                                    PlayerAttribute::Color (color) => println!("received player color: {color:?}"),
                                     PlayerAttribute::Trans => println!("received player trans"),
                                     PlayerAttribute::Hands => println!("received player hands"),
                                 }

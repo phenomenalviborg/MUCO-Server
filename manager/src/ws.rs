@@ -1,8 +1,9 @@
 use std::time::{UNIX_EPOCH, SystemTime};
 
-use crate::{Client, context::MucoContextRef, color::Color, connection_status::ConnectionStatus, DEFAULT_SESSION_DURATION, headset_data::SessionState};
+use crate::{Client, context::MucoContextRef, color::Color, connection_status::ConnectionStatus, DEFAULT_SESSION_DURATION, headset_data::SessionState, inter_client_msg::InterClientMsg, player_data_msg::PlayerDataMsg, player_data::PlayerAttribute};
 use anyhow::Context;
 use futures::{FutureExt, StreamExt};
+use msgs::{server_client_msg::ServerClientMsg, client_server_msg::{ClientServerMsg, Address}};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use uuid::Uuid;
@@ -91,6 +92,13 @@ pub async fn process_client_msg(client_msg: ClientMsg, context_ref: &MucoContext
             let mut context = context_ref.write().await;
             let headset = context.status.headsets.get_mut(&unique_device_id).context("could not find headset with id {unique_device_id}")?;
             headset.persistent.color = color;
+            if let ConnectionStatus::Connected(session_id) = headset.temp.connection_status {
+                let mut bytes = Vec::new();
+                let msg = InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Color(color)));
+                msg.pack(&mut bytes);
+                let msg = ClientServerMsg::BinaryMessageTo(Address::Client(session_id), bytes);
+                context.server.main_to_server.send(msg).await?;
+            }
             UpdateClients
         }
         SetName(unique_device_id, name) => {

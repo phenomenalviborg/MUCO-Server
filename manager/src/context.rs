@@ -4,9 +4,10 @@ use anyhow::Context;
 use tokio::sync::RwLock;
 use warp::filters::ws::Message;
 
-use crate::{Client, status::Status, headset_data::HeadsetData, connection_status::ConnectionStatus};
+use crate::{Client, status::Status, headset_data::HeadsetData, connection_status::ConnectionStatus, server::Server};
 
 pub struct MucoContext {
+    pub server: Server,
     pub clients: HashMap<String, Client>,
     pub connection_id_to_player: HashMap<u32, String>,
     pub status: Status,

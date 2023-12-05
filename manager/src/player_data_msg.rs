@@ -1,7 +1,7 @@
 use std::io::{Cursor, Write};
 
 use anyhow::bail;
-use byteorder::{LittleEndian, ReadBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use crate::player_data::PlayerAttribute;
 
@@ -35,7 +35,10 @@ impl PlayerDataMsg {
     pub fn pack(&self, wtr: &mut impl Write) {
         match self {
             PlayerDataMsg::Notify(_) => todo!(),
-            PlayerDataMsg::Set(_) => todo!(),
+            PlayerDataMsg::Set(attribute) => {
+                wtr.write_u32::<LittleEndian>(1).unwrap();
+                attribute.pack(wtr);
+            }
             PlayerDataMsg::Request => todo!(),
         }
     }

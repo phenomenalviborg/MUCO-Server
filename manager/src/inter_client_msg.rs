@@ -1,7 +1,7 @@
 use std::io::{Cursor, Write};
 
 use anyhow::bail;
-use byteorder::{LittleEndian, ReadBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use crate::player_data_msg::PlayerDataMsg;
 
@@ -37,8 +37,9 @@ impl InterClientMsg {
             InterClientMsg::Interaction => {
                 todo!()
             }
-            InterClientMsg::PlayerData(_) => {
-                todo!()
+            InterClientMsg::PlayerData(player_data_msg) => {
+                wtr.write_u32::<LittleEndian>(1).unwrap();
+                player_data_msg.pack(wtr);
             }
             InterClientMsg::Ping => {
                 todo!()
