@@ -10,7 +10,7 @@ pub enum ServerClientMsg {
     AssignSessionId (u32),
     ClientConnected (u32),
     ClientDisconnected (u32),
-    BinaryMessageFrom (u32, Vec<u8>),
+    InterClient (u32, Vec<u8>),
 }
 
 impl ServerClientMsg {
@@ -43,7 +43,7 @@ impl ServerClientMsg {
             3 => {
                 let sender = rdr.read_u32::<LittleEndian>().unwrap();
                 let bs = input_buffer[begin+4..].to_vec();
-                ServerClientMsg::BinaryMessageFrom (sender, bs)
+                ServerClientMsg::InterClient (sender, bs)
             }
             type_index => {
                 bail!("unsupported msg type: {type_index}");
@@ -70,7 +70,7 @@ impl ServerClientMsg {
                 wtr.write_u32::<LittleEndian>(2).unwrap();
                 wtr.write_u32::<LittleEndian>(*id as u32).unwrap();
             }
-            ServerClientMsg::BinaryMessageFrom (sender, bytes) => {
+            ServerClientMsg::InterClient (sender, bytes) => {
                 wtr.write_u32::<LittleEndian>(8 + bytes.len() as u32).unwrap();
                 wtr.write_u32::<LittleEndian>(3).unwrap();
                 wtr.write_u32::<LittleEndian>(*sender as u32).unwrap();

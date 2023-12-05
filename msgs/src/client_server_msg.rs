@@ -5,7 +5,6 @@ use byteorder::{LittleEndian, WriteBytesExt, ReadBytesExt};
 
 use crate::{client_type::ClientType, dequeue::dequeue_msg};
 
-
 #[derive(Debug, Clone, Copy)]
 pub enum Address {
     Client (u32),

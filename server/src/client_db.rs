@@ -63,7 +63,7 @@ impl ClientDb {
                 self.send_server_client_msg(Address::All, ServerClientMsg::ClientDisconnected(session_id)).await;
             }
             ClientServerMsg::BinaryMessageTo(address, bytes) => {
-                self.send_server_client_msg(address, ServerClientMsg::BinaryMessageFrom(session_id, bytes)).await;
+                self.send_server_client_msg(address, ServerClientMsg::InterClient(session_id, bytes)).await;
             }
             ClientServerMsg::SetClientType(client_type) => {
                 let client = self.get_mut(session_id).unwrap();

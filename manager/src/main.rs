@@ -2,7 +2,7 @@ use std::{sync::Arc, collections::HashMap, convert::Infallible};
 
 use console_input::console_input_thread;
 use context::{MucoContextRef, MucoContext};
-use msgs::{client_server_msg::ClientServerMsg, client_type::ClientType};
+use msgs::{client_server_msg::ClientServerMsg, client_type::ClientType, server_client_msg::ServerClientMsg};
 use server::Server;
 use status::Status;
 use tokio::sync::{mpsc, RwLock};
@@ -14,6 +14,7 @@ mod console_input;
 mod context;
 mod handler;
 mod headset_data;
+mod inter_client_msg;
 mod server;
 mod status;
 mod ws;
@@ -63,7 +64,20 @@ async fn main() {
 
     loop {
         let Some(msg) = main_from_server.recv().await else { break };
-        dbg!(msg);
+        match msg {
+            ServerClientMsg::AssignSessionId(session_id) => {
+                println!("session id: {session_id}");
+            }
+            ServerClientMsg::ClientConnected(session_id) => {
+                println!("client connected: {session_id}");
+            }
+            ServerClientMsg::ClientDisconnected(session_id) => {
+                println!("client disconnected: {session_id}");
+            }
+            ServerClientMsg::InterClient(sender, data) => {
+                println!("inter client msg from {sender}: {data:?}");
+            }
+        }
     }
 }
 
