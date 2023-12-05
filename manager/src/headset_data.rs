@@ -8,7 +8,7 @@ pub struct PersistentHeadsetData {
 
 impl PersistentHeadsetData {
     pub fn new() -> PersistentHeadsetData {
-        PersistentHeadsetData { name: String::new(), color: Color { r: 0.0, g: 0.0, b: 0.0, a: 0.0 } }
+        PersistentHeadsetData { name: "New Headset".to_string(), color: Color { r: 0.0, g: 0.0, b: 0.0, a: 0.0 } }
     }
 }
 

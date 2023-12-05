@@ -1,6 +1,6 @@
 use std::time::{UNIX_EPOCH, SystemTime};
 
-use crate::{Client, context::MucoContextRef, color::Color, connection_status::ConnectionStatus, DEFAULT_SESSION_DURATION, headset_data::SessionState, inter_client_msg::InterClientMsg, player_data_msg::PlayerDataMsg, player_data::PlayerAttribute};
+use crate::{Client, context::MucoContextRef, color::Color, connection_status::ConnectionStatus, DEFAULT_SESSION_DURATION, headset_data::SessionState, inter_client_msg::InterClientMsg, player_data_msg::PlayerDataMsg, player_data::PlayerAttribute, SAVE_DATA_PATH};
 use anyhow::Context;
 use futures::{FutureExt, StreamExt};
 use msgs::{server_client_msg::ServerClientMsg, client_server_msg::{ClientServerMsg, Address}};
@@ -80,6 +80,7 @@ pub async fn process_client_msg(client_msg: ClientMsg, context_ref: &MucoContext
         Forget(unique_device_id) => {
             let mut context = context_ref.write().await;
             context.status.headsets.remove(&unique_device_id);
+            context.status.save(SAVE_DATA_PATH)?;
             UpdateClients
         }
         Kick(unique_device_id) => {
@@ -98,6 +99,7 @@ pub async fn process_client_msg(client_msg: ClientMsg, context_ref: &MucoContext
                 msg.pack(&mut bytes);
                 let msg = ClientServerMsg::BinaryMessageTo(Address::Client(session_id), bytes);
                 context.server.main_to_server.send(msg).await?;
+                context.status.save(SAVE_DATA_PATH)?;
             }
             UpdateClients
         }
@@ -105,6 +107,7 @@ pub async fn process_client_msg(client_msg: ClientMsg, context_ref: &MucoContext
             let mut context = context_ref.write().await;
             let headset = context.status.headsets.get_mut(&unique_device_id).context("could not find headset with id {unique_device_id}")?;
             headset.persistent.name = name;
+            context.status.save(SAVE_DATA_PATH)?;
             UpdateClients
         }
         StartSession(unique_device_id) => {
