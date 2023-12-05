@@ -4,7 +4,7 @@ use anyhow::Context;
 use tokio::sync::RwLock;
 use warp::filters::ws::Message;
 
-use crate::{Client, status::Status, headset_data::HeadsetData};
+use crate::{Client, status::Status, headset_data::HeadsetData, connection_status::ConnectionStatus};
 
 pub struct MucoContext {
     pub clients: HashMap<String, Client>,
@@ -28,6 +28,14 @@ impl MucoContext {
                 let _ = sender.send(Ok(Message::text(json.clone())));
             }
         }
+    }
+
+    pub async fn disconnect(&mut self, session_id: u32) {
+        let Some(device_id) = self.connection_id_to_player.get(&session_id) else { return };
+        let headset = self.status.headsets.get_mut(device_id).unwrap();
+        headset.temp.connection_status = ConnectionStatus::Disconnected;
+        println!("client disconnected: {device_id}");
+        self.update_clients().await;
     }
 }
 

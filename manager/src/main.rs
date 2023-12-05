@@ -1,5 +1,6 @@
 use std::{sync::Arc, collections::HashMap, convert::Infallible};
 
+use connection_status::ConnectionStatus;
 use console_input::console_input_thread;
 use context::{MucoContextRef, MucoContext};
 use inter_client_msg::InterClientMsg;
@@ -80,7 +81,8 @@ async fn main() {
                 println!("client connected: {session_id}");
             }
             ServerClientMsg::ClientDisconnected(session_id) => {
-                println!("client disconnected: {session_id}");
+                let mut context = context_ref.write().await;
+                context.disconnect(session_id).await;
             }
             ServerClientMsg::InterClient(sender, input_buffer) => {
                 let result = InterClientMsg::decode(&input_buffer, sender);
@@ -105,6 +107,8 @@ async fn main() {
                                             let new_player_data = HeadsetData::new();
                                             context.status.headsets.insert(device_id_string.clone(), new_player_data);
                                         }
+                                        let headset = context.status.headsets.get_mut(&device_id_string).unwrap();
+                                        headset.temp.connection_status = ConnectionStatus::Connected;
                                         context.connection_id_to_player.insert(sender, device_id_string);
                                         context.update_clients().await;
                                     }
