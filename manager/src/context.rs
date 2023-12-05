@@ -34,7 +34,7 @@ impl MucoContext {
 
     pub async fn disconnect(&mut self, session_id: u32) {
         let Some(device_id) = self.connection_id_to_player.get(&session_id) else { return };
-        let headset = self.status.headsets.get_mut(device_id).unwrap();
+        let Some(headset) = self.status.headsets.get_mut(device_id) else { return };
         headset.temp.connection_status = ConnectionStatus::Disconnected;
         println!("client disconnected: {device_id}");
         self.update_clients().await;
