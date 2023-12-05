@@ -5,12 +5,20 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use crate::color::Color;
 
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+pub enum Language {
+    English,
+    Dansk,
+    Deutsch,
+}
+
 #[derive(Debug)]
 pub enum PlayerAttribute {
     DeviceId (u32),
     Color (Color),
     Trans,
     Hands,
+    Language (Language),
 }
 
 impl PlayerAttribute {
@@ -55,6 +63,15 @@ impl PlayerAttribute {
             }
             PlayerAttribute::Trans => todo!(),
             PlayerAttribute::Hands => todo!(),
+            PlayerAttribute::Language (language) => {
+                wtr.write_u32::<LittleEndian>(4).unwrap();
+                let language_index = match language {
+                    Language::English => 0,
+                    Language::Dansk => 1,
+                    Language::Deutsch => 2,
+                };
+                wtr.write_u32::<LittleEndian>(language_index).unwrap();
+            }
         }
     }
 }

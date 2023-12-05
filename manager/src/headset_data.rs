@@ -1,14 +1,15 @@
-use crate::{color::Color, connection_status::ConnectionStatus, DEFAULT_SESSION_DURATION};
+use crate::{color::Color, connection_status::ConnectionStatus, DEFAULT_SESSION_DURATION, player_data::Language};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PersistentHeadsetData {
     pub name: String,
     pub color: Color,
+    pub language: Language,
 }
 
 impl PersistentHeadsetData {
     pub fn new() -> PersistentHeadsetData {
-        PersistentHeadsetData { name: "New Headset".to_string(), color: Color { r: 0.0, g: 0.0, b: 0.0, a: 0.0 } }
+        PersistentHeadsetData { name: "New Headset".to_string(), color: Color { r: 0.0, g: 0.0, b: 0.0, a: 0.0 }, language: Language::English }
     }
 }
 

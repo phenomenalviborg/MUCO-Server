@@ -4,7 +4,7 @@ use connection_status::ConnectionStatus;
 use console_input::console_input_thread;
 use context::{MucoContextRef, MucoContext};
 use inter_client_msg::InterClientMsg;
-use msgs::{client_server_msg::{ClientServerMsg, Address}, client_type::ClientType, server_client_msg::ServerClientMsg};
+use msgs::{client_server_msg::ClientServerMsg, client_type::ClientType, server_client_msg::ServerClientMsg};
 use player_data::PlayerAttribute;
 use player_data_msg::PlayerDataMsg;
 use server::Server;
@@ -111,16 +111,16 @@ async fn main() {
                                         let headset = context.status.headsets.get_mut(&device_id_string).unwrap();
                                         headset.temp.connection_status = ConnectionStatus::Connected (sender);
                                         let headset_color = headset.persistent.color;
+                                        let headset_language = headset.persistent.language;
                                         context.connection_id_to_player.insert(sender, device_id_string);
                                         context.update_clients().await;
-                                        let msg = InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Color (headset_color)));
-                                        let mut bytes = Vec::new();
-                                        msg.pack(&mut bytes);
-                                        context.server.main_to_server.send(ClientServerMsg::BinaryMessageTo (Address::Client(sender), bytes)).await.unwrap();
+                                        context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Color (headset_color)))).await;
+                                        context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Language (headset_language)))).await;
                                     }
                                     PlayerAttribute::Color (color) => println!("received player color: {color:?}"),
                                     PlayerAttribute::Trans => println!("received player trans"),
                                     PlayerAttribute::Hands => println!("received player hands"),
+                                    PlayerAttribute::Language (language) => println!("received player language: {language:?}"),
                                 }
                             }
                             PlayerDataMsg::Set(_) => todo!(),
@@ -137,4 +137,3 @@ async fn main() {
 fn with_context(context_ref: MucoContextRef) -> impl Filter<Extract = (MucoContextRef,), Error = Infallible> + Clone {
     warp::any().map(move || context_ref.clone())
 }
-

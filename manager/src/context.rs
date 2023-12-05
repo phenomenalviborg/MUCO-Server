@@ -1,10 +1,11 @@
 use std::{collections::HashMap, sync::Arc};
 
 use anyhow::Context;
+use msgs::client_server_msg::{ClientServerMsg, Address};
 use tokio::sync::RwLock;
 use warp::filters::ws::Message;
 
-use crate::{Client, status::Status, headset_data::HeadsetData, connection_status::ConnectionStatus, server::Server};
+use crate::{Client, status::Status, headset_data::HeadsetData, connection_status::ConnectionStatus, server::Server, inter_client_msg::InterClientMsg};
 
 pub struct MucoContext {
     pub server: Server,
@@ -37,6 +38,12 @@ impl MucoContext {
         headset.temp.connection_status = ConnectionStatus::Disconnected;
         println!("client disconnected: {device_id}");
         self.update_clients().await;
+    }
+
+    pub async fn send_msg_to_player(&mut self, session_id: u32, msg: InterClientMsg) {
+        let mut bytes = Vec::new();
+        msg.pack(&mut bytes);
+        self.server.main_to_server.send(ClientServerMsg::BinaryMessageTo (Address::Client(session_id), bytes)).await.unwrap();
     }
 }
 
