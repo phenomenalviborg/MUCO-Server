@@ -1,18 +1,13 @@
 use std::{sync::Arc, collections::HashMap, convert::Infallible};
 
-use connection_status::ConnectionStatus;
 use console_input::console_input_thread;
 use context::{MucoContextRef, MucoContext};
-use inter_client_msg::InterClientMsg;
 use msgs::{client_server_msg::ClientServerMsg, client_type::ClientType, server_client_msg::ServerClientMsg};
-use player_data::PlayerAttribute;
-use player_data_msg::PlayerDataMsg;
+use process_server_client_msg::process_server_client_msg;
 use relay_server_connection_process::spawn_relay_server_connection_process;
 use status::Status;
 use tokio::sync::{mpsc::Receiver, RwLock};
 use warp::{reject::Rejection, Filter};
-
-use crate::headset_data::HeadsetData;
 
 mod color;
 mod connection_status;
@@ -23,6 +18,7 @@ mod headset_data;
 mod inter_client_msg;
 mod player_data_msg;
 mod player_data;
+mod process_server_client_msg;
 mod relay_server_connection_process;
 mod status;
 mod ws;
@@ -74,63 +70,6 @@ pub async fn relay_server(mut main_from_server: Receiver<ServerClientMsg>, conte
     loop {
         let Some(msg) = main_from_server.recv().await else { break };
         process_server_client_msg(msg, &context_ref).await;
-    }
-}
-
-pub async fn process_server_client_msg(msg: ServerClientMsg, context_ref: &MucoContextRef) {
-    match msg {
-        ServerClientMsg::AssignSessionId(session_id) => {
-            println!("session id: {session_id}");
-        }
-        ServerClientMsg::ClientConnected(session_id) => {
-            println!("client connected: {session_id}");
-        }
-        ServerClientMsg::ClientDisconnected(session_id) => {
-            let mut context = context_ref.write().await;
-            context.disconnect(session_id).await;
-        }
-        ServerClientMsg::InterClient(sender, input_buffer) => {
-            let result = InterClientMsg::decode(&input_buffer, sender);
-            let inter_client_msg = match result {
-                Ok(msg) => msg,
-                Err(e) => {
-                    println!("error while decodeing msg: {e}");
-                    return;
-                }
-            };
-            
-            match inter_client_msg {
-                InterClientMsg::_Interaction => {}
-                InterClientMsg::PlayerData (player_data_msg) => {
-                    match player_data_msg {
-                        PlayerDataMsg::Notify (player_data) => {
-                            match player_data {
-                                PlayerAttribute::DeviceId(device_id) => {
-                                    let device_id_string = device_id.to_string();
-                                    let mut context = context_ref.write().await;
-                                    if !context.status.headsets.contains_key(&device_id_string) {
-                                        let new_player_data = HeadsetData::new();
-                                        context.status.headsets.insert(device_id_string.clone(), new_player_data);
-                                    }
-                                    let headset = context.status.headsets.get_mut(&device_id_string).unwrap();
-                                    headset.temp.connection_status = ConnectionStatus::Connected (sender);
-                                    let headset_color = headset.persistent.color;
-                                    let headset_language = headset.persistent.language;
-                                    context.connection_id_to_player.insert(sender, device_id_string);
-                                    context.update_clients().await;
-                                    context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Color (headset_color)))).await;
-                                    context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Language (headset_language)))).await;
-                                }
-                                _ => {}
-                            }
-                        }
-                        PlayerDataMsg::Set(_) => todo!(),
-                        PlayerDataMsg::_Request => todo!(),
-                    }
-                }
-                InterClientMsg::_Ping => {}
-            }
-        }
     }
 }
 
