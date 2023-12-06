@@ -1,18 +1,7 @@
 use msgs::{server_client_msg::ServerClientMsg, client_server_msg::ClientServerMsg};
 use tokio::{net::TcpStream, io::{AsyncReadExt, AsyncWriteExt}};
 
-pub struct Server {
-    pub main_to_server: tokio::sync::mpsc::Sender<ClientServerMsg>,
-}
-
-impl Server {
-    pub fn new(server_to_main: tokio::sync::mpsc::Sender<ServerClientMsg>) -> Server {
-        let main_to_server = spawn_server_process(server_to_main);
-        Server { main_to_server }
-    }
-}
-
-pub fn spawn_server_process(server_to_main: tokio::sync::mpsc::Sender<ServerClientMsg>) -> tokio::sync::mpsc::Sender<ClientServerMsg> {
+pub fn spawn_relay_server_connection_process(server_to_main: tokio::sync::mpsc::Sender<ServerClientMsg>) -> tokio::sync::mpsc::Sender<ClientServerMsg> {
     let (main_to_server, mut server_from_main) = tokio::sync::mpsc::channel::<ClientServerMsg>(100);
     tokio::spawn(async move {
         let mut static_buffer = [0; 1024];

@@ -5,10 +5,10 @@ use msgs::client_server_msg::{ClientServerMsg, Address};
 use tokio::sync::{RwLock, mpsc};
 use warp::filters::ws::Message;
 
-use crate::{status::Status, headset_data::HeadsetData, connection_status::ConnectionStatus, server::Server, inter_client_msg::InterClientMsg};
+use crate::{status::Status, headset_data::HeadsetData, connection_status::ConnectionStatus, inter_client_msg::InterClientMsg};
 
 pub struct MucoContext {
-    pub server: Server,
+    pub to_relay_server_process: tokio::sync::mpsc::Sender<ClientServerMsg>,
     pub to_frontend_senders: HashMap<String, mpsc::UnboundedSender<std::result::Result<Message, warp::Error>>>,
     pub connection_id_to_player: HashMap<u32, String>,
     pub status: Status,
@@ -41,7 +41,7 @@ impl MucoContext {
     pub async fn send_msg_to_player(&mut self, session_id: u32, msg: InterClientMsg) {
         let mut bytes = Vec::new();
         msg.pack(&mut bytes);
-        self.server.main_to_server.send(ClientServerMsg::BinaryMessageTo (Address::Client(session_id), bytes)).await.unwrap();
+        self.to_relay_server_process.send(ClientServerMsg::BinaryMessageTo (Address::Client(session_id), bytes)).await.unwrap();
     }
 }
 
