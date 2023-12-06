@@ -9,8 +9,8 @@ use player_data::PlayerAttribute;
 use player_data_msg::PlayerDataMsg;
 use server::Server;
 use status::Status;
-use tokio::sync::{mpsc::{self, Receiver}, RwLock};
-use warp::{filters::ws::Message, reject::Rejection, Filter};
+use tokio::sync::{mpsc::Receiver, RwLock};
+use warp::{reject::Rejection, Filter};
 
 use crate::headset_data::HeadsetData;
 
@@ -32,11 +32,6 @@ type Result<T> = std::result::Result<T, Rejection>;
 const SAVE_DATA_PATH: &str = "server_data.txt";
 const DEFAULT_SESSION_DURATION: i64 = 30 * 60;
 
-#[derive(Debug, Clone)]
-pub struct Client {
-    pub sender: Option<mpsc::UnboundedSender<std::result::Result<Message, warp::Error>>>,
-}
-
 #[tokio::main]
 async fn main() {
     let status = Status::load(SAVE_DATA_PATH).unwrap_or(Status::new());
@@ -49,7 +44,7 @@ async fn main() {
     let context = MucoContext {
         server,
         connection_id_to_player: HashMap::new(),
-        clients: HashMap::new(),
+        to_frontend_senders: HashMap::new(),
         status,
     };
 

@@ -1,6 +1,6 @@
 use std::time::{UNIX_EPOCH, SystemTime};
 
-use crate::{Client, context::MucoContextRef, color::Color, connection_status::ConnectionStatus, DEFAULT_SESSION_DURATION, headset_data::SessionState, inter_client_msg::InterClientMsg, player_data_msg::PlayerDataMsg, player_data::{PlayerAttribute, Language}, SAVE_DATA_PATH};
+use crate::{context::MucoContextRef, color::Color, connection_status::ConnectionStatus, DEFAULT_SESSION_DURATION, headset_data::SessionState, inter_client_msg::InterClientMsg, player_data_msg::PlayerDataMsg, player_data::{PlayerAttribute, Language}, SAVE_DATA_PATH};
 use anyhow::Context;
 use futures::{FutureExt, StreamExt};
 use tokio::sync::mpsc;
@@ -9,29 +9,25 @@ use uuid::Uuid;
 use warp::ws::{Message, WebSocket};
 
 pub async fn frontend_connection_process(ws: WebSocket, context_ref: MucoContextRef) {
-    let (client_ws_sender, mut client_ws_rcv) = ws.split();
-    let (client_sender, client_rcv) = mpsc::unbounded_channel();
+    let (frontend_ws_sender, mut frontend_ws_rcv) = ws.split();
+    let (to_frontend_connection_process, front_end_connection_process_rcv) = mpsc::unbounded_channel();
 
-    let client_rcv = UnboundedReceiverStream::new(client_rcv);
-    tokio::task::spawn(client_rcv.forward(client_ws_sender).map(|result| {
+    let front_end_connection_rcv_unbounded_receiver_stream = UnboundedReceiverStream::new(front_end_connection_process_rcv);
+    tokio::task::spawn(front_end_connection_rcv_unbounded_receiver_stream.forward(frontend_ws_sender).map(|result| {
         if let Err(e) = result {
             eprintln!("error sending websocket msg: {}", e);
         }
     }));
 
-    let client = Client {
-        sender: Some(client_sender),
-    };
-
     let id = Uuid::new_v4().as_simple().to_string();
 
-    context_ref.write().await.clients.insert(id.clone(), client);
+    context_ref.write().await.to_frontend_senders.insert(id.clone(), to_frontend_connection_process);
 
     println!("{} connected", id);
 
     context_ref.read().await.update_clients().await;
 
-    while let Some(result) = client_ws_rcv.next().await {
+    while let Some(result) = frontend_ws_rcv.next().await {
         let msg = match result {
             Ok(msg) => msg,
             Err(e) => {
@@ -45,7 +41,7 @@ pub async fn frontend_connection_process(ws: WebSocket, context_ref: MucoContext
         }
     }
 
-    context_ref.write().await.clients.remove(&id);
+    context_ref.write().await.to_frontend_senders.remove(&id);
     println!("{} disconnected", id);
 }
 
@@ -174,8 +170,7 @@ async fn client_msg(id: &str, msg: Message, context_ref: &MucoContextRef) -> any
     match response {
         ServerResponse::Reply(reply) => {
             let context = context_ref.read().await;
-            let client = context.clients.get(id).context("could not find client with id: {id}")?;
-            let sender = client.sender.as_ref().context("client has no sender")?;
+            let sender = context.to_frontend_senders.get(id).context("could not find client with id: {id}")?;
             let _ = sender.send(Ok(Message::text(reply)));
         }
         ServerResponse::UpdateClients => {

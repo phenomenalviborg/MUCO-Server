@@ -2,14 +2,14 @@ use std::{collections::HashMap, sync::Arc};
 
 use anyhow::Context;
 use msgs::client_server_msg::{ClientServerMsg, Address};
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, mpsc};
 use warp::filters::ws::Message;
 
-use crate::{Client, status::Status, headset_data::HeadsetData, connection_status::ConnectionStatus, server::Server, inter_client_msg::InterClientMsg};
+use crate::{status::Status, headset_data::HeadsetData, connection_status::ConnectionStatus, server::Server, inter_client_msg::InterClientMsg};
 
 pub struct MucoContext {
     pub server: Server,
-    pub clients: HashMap<String, Client>,
+    pub to_frontend_senders: HashMap<String, mpsc::UnboundedSender<std::result::Result<Message, warp::Error>>>,
     pub connection_id_to_player: HashMap<u32, String>,
     pub status: Status,
 }
@@ -25,10 +25,8 @@ impl MucoContext {
     pub async fn update_clients(&self) {
         let json = serde_json::to_string(&self.status).unwrap();
 
-        for (_id, client) in self.clients.iter() {
-            if let Some(sender) = &client.sender {
-                let _ = sender.send(Ok(Message::text(json.clone())));
-            }
+        for (_id, to_frontend_sender) in self.to_frontend_senders.iter() {
+            to_frontend_sender.send(Ok(Message::text(json.clone()))).unwrap();
         }
     }
 
