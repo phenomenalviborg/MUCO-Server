@@ -121,7 +121,13 @@ pub fn spawn_client_process(mut socket: TcpStream, client_to_main: tokio::sync::
                         }
                     };
 
-                    send_client_msg(msg, &mut socket, &mut output_buffer).await;
+                    match send_client_msg(msg, &mut socket, &mut output_buffer).await {
+                        Ok(_) => {},
+                        Err(e) => {
+                            println!("disconnecting because of error while writing to client: {e}");
+                            return;
+                        }
+                    }
                 }
             }
         }
@@ -129,8 +135,9 @@ pub fn spawn_client_process(mut socket: TcpStream, client_to_main: tokio::sync::
     main_to_client
 }
 
-pub async fn send_client_msg(msg: ServerClientMsg, socket: &mut TcpStream, output_buffer: &mut Vec<u8>) {
+pub async fn send_client_msg(msg: ServerClientMsg, socket: &mut TcpStream, output_buffer: &mut Vec<u8>) -> anyhow::Result<()> {
     output_buffer.clear();
     msg.pack(output_buffer);
-    socket.write_all(&output_buffer).await.unwrap();
+    socket.write_all(&output_buffer).await?;
+    Ok(())
 }
