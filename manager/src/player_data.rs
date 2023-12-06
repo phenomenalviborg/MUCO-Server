@@ -19,6 +19,7 @@ pub enum PlayerAttribute {
     Trans,
     Hands,
     Language (Language),
+    EnvironmentCode (String),
 }
 
 #[derive(Debug)]
@@ -28,6 +29,7 @@ pub enum PlayerAttributeTag {
     _Trans,
     _Hands,
     _Language,
+    _EnvironmentCode,
 }
 
 impl PlayerAttribute {
@@ -80,6 +82,11 @@ impl PlayerAttribute {
                     Language::Deutsch => 2,
                 };
                 wtr.write_u32::<LittleEndian>(language_index).unwrap();
+            }
+            PlayerAttribute::EnvironmentCode(code) => {
+                wtr.write_u32::<LittleEndian>(5).unwrap();
+                wtr.write_u32::<LittleEndian>(code.len() as u32).unwrap();
+                wtr.write(code.as_bytes()).unwrap();
             }
         }
     }

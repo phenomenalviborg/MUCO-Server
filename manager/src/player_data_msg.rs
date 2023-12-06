@@ -50,6 +50,7 @@ impl PlayerDataMsg {
                     PlayerAttributeTag::_Trans => 2,
                     PlayerAttributeTag::_Hands => 3,
                     PlayerAttributeTag::_Language => 4,
+                    PlayerAttributeTag::_EnvironmentCode => 5,
                 };
                 wtr.write_u32::<LittleEndian>(tag_index).unwrap();
             }

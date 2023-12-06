@@ -1,24 +1,14 @@
 [
   {
     "unique_device_id": 1933780899,
-    "name": "jm desktop",
+    "name": "pc2",
     "color": {
-      "r": 0.54901963,
-      "g": 0.8980392,
-      "b": 0.023529412,
-      "a": 1.0
+      "r": 0.0,
+      "g": 0.0,
+      "b": 0.0,
+      "a": 0.0
     },
-    "language": "English"
-  },
-  {
-    "unique_device_id": 1951265752,
-    "name": "13",
-    "color": {
-      "r": 0.79607844,
-      "g": 0.13725491,
-      "b": 0.84313726,
-      "a": 1.0
-    },
-    "language": "English"
+    "language": "English",
+    "environment_code": "AntilatencyAltEnvironmentHorizontalGrid~AgACBLhTiT_cRqA-r45jvZqZmT4AAAAAAAAAAACamRk_AQEAAgM"
   }
 ]

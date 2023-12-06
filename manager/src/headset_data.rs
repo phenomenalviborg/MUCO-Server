@@ -1,11 +1,14 @@
 use crate::{color::Color, connection_status::ConnectionStatus, DEFAULT_SESSION_DURATION, player_data::Language};
 
+const DEFAULT_ENVIRONMENT_CODE: &str = "AntilatencyAltEnvironmentHorizontalGrid~AgACBLhTiT_cRqA-r45jvZqZmT4AAAAAAAAAAACamRk_AQEAAgM";
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PersistentHeadsetData {
     pub unique_device_id: u32,
     pub name: String,
     pub color: Color,
     pub language: Language,
+    pub environment_code: String,
 }
 
 impl PersistentHeadsetData {
@@ -15,6 +18,7 @@ impl PersistentHeadsetData {
             name: "New Headset".to_string(),
             color: Color { r: 0.0, g: 0.0, b: 0.0, a: 0.0 },
             language: Language::English,
+            environment_code: DEFAULT_ENVIRONMENT_CODE.to_string(),
         }
     }
 }

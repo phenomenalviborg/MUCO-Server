@@ -54,6 +54,7 @@ pub enum ClientMsg {
     SetColor(String, Color),
     SetName(String, String),
     SetLanguage(String, Language),
+    SetEnvironmentCode(String, String),
     StartSession(String),
     ExtendSession(String, i64),
     Pause(String),
@@ -99,6 +100,16 @@ pub async fn process_client_msg(client_msg: ClientMsg, context_ref: &MucoContext
             headset.persistent.language = language;
             if let ConnectionStatus::Connected(session_id) = headset.temp.connection_status {
                 let msg = InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Language(language)));
+                context.send_msg_to_player(session_id, msg).await;
+            }
+            UpdateClients
+        }
+        SetEnvironmentCode(unique_device_id, code) => {
+            let mut context = context_ref.write().await;
+            let headset = context.status.headsets.get_mut(&unique_device_id).context("could not find headset with id {unique_device_id}")?;
+            headset.persistent.environment_code = code.clone();
+            if let ConnectionStatus::Connected(session_id) = headset.temp.connection_status {
+                let msg = InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::EnvironmentCode(code)));
                 context.send_msg_to_player(session_id, msg).await;
             }
             UpdateClients

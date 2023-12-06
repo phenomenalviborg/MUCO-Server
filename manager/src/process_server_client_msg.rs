@@ -41,10 +41,12 @@ pub async fn process_server_client_msg(msg: ServerClientMsg, context_ref: &MucoC
                                     headset.temp.connection_status = ConnectionStatus::Connected (sender);
                                     let headset_color = headset.persistent.color;
                                     let headset_language = headset.persistent.language;
+                                    let headset_environment_code = headset.persistent.environment_code.clone();
                                     context.connection_id_to_player.insert(sender, device_id_string);
                                     context.status_generation += 1;
                                     context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Color (headset_color)))).await;
                                     context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Language (headset_language)))).await;
+                                    context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::EnvironmentCode (headset_environment_code)))).await;
                                 }
                                 _ => {}
                             }

@@ -3,4 +3,3 @@ pub enum ConnectionStatus {
     Connected (u32),
     Disconnected,
 }
-
