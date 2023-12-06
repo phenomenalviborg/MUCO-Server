@@ -117,10 +117,7 @@ async fn main() {
                                         context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Color (headset_color)))).await;
                                         context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Language (headset_language)))).await;
                                     }
-                                    PlayerAttribute::Color (color) => println!("received player color: {color:?}"),
-                                    PlayerAttribute::Trans => println!("received player trans"),
-                                    PlayerAttribute::Hands => println!("received player hands"),
-                                    PlayerAttribute::Language (language) => println!("received player language: {language:?}"),
+                                    _ => {}
                                 }
                             }
                             PlayerDataMsg::Set(_) => todo!(),
