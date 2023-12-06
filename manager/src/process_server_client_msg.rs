@@ -49,8 +49,7 @@ pub async fn process_server_client_msg(msg: ServerClientMsg, context_ref: &MucoC
                                 _ => {}
                             }
                         }
-                        PlayerDataMsg::Set(_) => todo!(),
-                        PlayerDataMsg::_Request => todo!(),
+                        msg => println!("unhandeled player data msg: {msg:?}")
                     }
                 }
                 InterClientMsg::_Ping => {}
