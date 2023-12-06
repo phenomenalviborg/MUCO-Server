@@ -8,7 +8,7 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use uuid::Uuid;
 use warp::ws::{Message, WebSocket};
 
-pub async fn client_connection(ws: WebSocket, context_ref: MucoContextRef) {
+pub async fn frontend_connection_process(ws: WebSocket, context_ref: MucoContextRef) {
     let (client_ws_sender, mut client_ws_rcv) = ws.split();
     let (client_sender, client_rcv) = mpsc::unbounded_channel();
 
@@ -46,7 +46,6 @@ pub async fn client_connection(ws: WebSocket, context_ref: MucoContextRef) {
     }
 
     context_ref.write().await.clients.remove(&id);
-    context_ref.read().await.update_clients().await;
     println!("{} disconnected", id);
 }
 

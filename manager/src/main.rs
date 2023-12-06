@@ -9,7 +9,7 @@ use player_data::PlayerAttribute;
 use player_data_msg::PlayerDataMsg;
 use server::Server;
 use status::Status;
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{mpsc::{self, Receiver}, RwLock};
 use warp::{filters::ws::Message, reject::Rejection, Filter};
 
 use crate::headset_data::HeadsetData;
@@ -41,7 +41,7 @@ pub struct Client {
 async fn main() {
     let status = Status::load(SAVE_DATA_PATH).unwrap_or(Status::new());
 
-    let (server_to_main, mut main_from_server) = tokio::sync::mpsc::channel(100);
+    let (server_to_main, main_from_server) = tokio::sync::mpsc::channel(100);
     let server = Server::new(server_to_main);
 
     server.main_to_server.send(ClientServerMsg::SetClientType (ClientType::Manager)).await.unwrap();
@@ -72,6 +72,10 @@ async fn main() {
         warp::serve(routes).run(([127, 0, 0, 1], 8000)).await;
     });
 
+    relay_server(main_from_server, context_ref).await;
+}
+
+pub async fn relay_server(mut main_from_server: Receiver<ServerClientMsg>, context_ref: MucoContextRef) {
     loop {
         let Some(msg) = main_from_server.recv().await else { break };
         match msg {
