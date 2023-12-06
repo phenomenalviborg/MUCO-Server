@@ -30,7 +30,13 @@ const DEFAULT_SESSION_DURATION: i64 = 30 * 60;
 
 #[tokio::main]
 async fn main() {
-    let status = Status::load(SAVE_DATA_PATH).unwrap_or(Status::new());
+    let status = match Status::load(SAVE_DATA_PATH) {
+        Ok(status) => status,
+        Err(e) => {
+            println!("error while loading headset data at startup: {e}");
+            Status::new()
+        }
+    };
 
     let (server_to_main, mut main_from_server) = tokio::sync::mpsc::channel(100);
     let to_relay_server_process = spawn_relay_server_connection_process(server_to_main);

@@ -1,46 +1,13 @@
-{
-  "headsets": {
-    "0": {
-      "persistent": {
-        "name": "jm laptop",
-        "color": {
-          "r": 0.8509804,
-          "g": 0.07058824,
-          "b": 0.07058824,
-          "a": 1
-        },
-        "language": "Dansk"
-      },
-      "temp": {
-        "connection_status": {
-          "Connected": 15
-        },
-        "session_state": {
-          "Paused": 0
-        },
-        "session_duration": 1800
-      }
+[
+  {
+    "unique_device_id": 1933780899,
+    "name": "jm desktop",
+    "color": {
+      "r": 0.0,
+      "g": 0.0,
+      "b": 0.0,
+      "a": 0.0
     },
-    "1933780899": {
-      "persistent": {
-        "name": "jm pc",
-        "color": {
-          "r": 0.93333334,
-          "g": 0.8627451,
-          "b": 0.06666667,
-          "a": 1
-        },
-        "language": "Dansk"
-      },
-      "temp": {
-        "connection_status": {
-          "Connected": 14
-        },
-        "session_state": {
-          "Paused": 0
-        },
-        "session_duration": 1800
-      }
-    }
+    "language": "English"
   }
-}
+]

@@ -1,6 +1,6 @@
 use msgs::server_client_msg::ServerClientMsg;
 
-use crate::{headset_data::HeadsetData, context::MucoContextRef, inter_client_msg::InterClientMsg, player_data_msg::PlayerDataMsg, player_data::PlayerAttribute, connection_status::ConnectionStatus};
+use crate::{headset_data::HeadsetData, context::MucoContextRef, inter_client_msg::InterClientMsg, player_data_msg::PlayerDataMsg, player_data::PlayerAttribute, connection_status::ConnectionStatus, SAVE_DATA_PATH};
 
 pub async fn process_server_client_msg(msg: ServerClientMsg, context_ref: &MucoContextRef) {
     match msg {
@@ -34,8 +34,9 @@ pub async fn process_server_client_msg(msg: ServerClientMsg, context_ref: &MucoC
                                     let device_id_string = device_id.to_string();
                                     let mut context = context_ref.write().await;
                                     if !context.status.headsets.contains_key(&device_id_string) {
-                                        let new_player_data = HeadsetData::new();
+                                        let new_player_data = HeadsetData::new(device_id);
                                         context.status.headsets.insert(device_id_string.clone(), new_player_data);
+                                        context.status.save(SAVE_DATA_PATH).unwrap();
                                     }
                                     let headset = context.status.headsets.get_mut(&device_id_string).unwrap();
                                     headset.temp.connection_status = ConnectionStatus::Connected (sender);
