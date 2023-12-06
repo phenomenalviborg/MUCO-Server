@@ -12,6 +12,7 @@ pub struct MucoContext {
     pub to_frontend_senders: HashMap<String, mpsc::UnboundedSender<std::result::Result<Message, warp::Error>>>,
     pub connection_id_to_player: HashMap<u32, String>,
     pub status: Status,
+    pub status_generation: usize,
 }
 
 pub type MucoContextRef = Arc<RwLock<MucoContext>>;
@@ -35,7 +36,7 @@ impl MucoContext {
         let Some(headset) = self.status.headsets.get_mut(device_id) else { return };
         headset.temp.connection_status = ConnectionStatus::Disconnected;
         println!("client disconnected: {device_id}");
-        self.update_clients().await;
+        self.status_generation += 1;
     }
 
     pub async fn send_msg_to_player(&mut self, session_id: u32, msg: InterClientMsg) {

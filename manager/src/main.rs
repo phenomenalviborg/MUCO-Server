@@ -48,6 +48,7 @@ async fn main() {
         connection_id_to_player: HashMap::new(),
         to_frontend_senders: HashMap::new(),
         status,
+        status_generation: 0,
     };
 
     let context_ref = Arc::new(RwLock::new(context));
@@ -69,10 +70,28 @@ async fn main() {
         warp::serve(routes).run(([127, 0, 0, 1], 8000)).await;
     });
 
+    update_clients_periodically(context_ref.clone()).await;
+
     loop {
         let Some(msg) = main_from_server.recv().await else { break };
         process_server_client_msg(msg, &context_ref).await;
     }
+}
+
+async fn update_clients_periodically(context_ref: MucoContextRef) {
+    let mut frontend_status_generation = 0;
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_millis(500));
+        loop {
+            interval.tick().await;
+            let context = context_ref.read().await;
+            if context.status_generation != frontend_status_generation {
+                context.update_clients().await;
+                context.status.save(SAVE_DATA_PATH).unwrap();
+                frontend_status_generation = context.status_generation;
+            }
+        }
+    });
 }
 
 fn with_context(context_ref: MucoContextRef) -> impl Filter<Extract = (MucoContextRef,), Error = Infallible> + Clone {

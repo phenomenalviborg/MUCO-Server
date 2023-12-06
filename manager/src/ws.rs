@@ -1,6 +1,6 @@
 use std::time::{UNIX_EPOCH, SystemTime};
 
-use crate::{context::MucoContextRef, color::Color, connection_status::ConnectionStatus, DEFAULT_SESSION_DURATION, headset_data::SessionState, inter_client_msg::InterClientMsg, player_data_msg::PlayerDataMsg, player_data::{PlayerAttribute, Language}, SAVE_DATA_PATH};
+use crate::{context::MucoContextRef, color::Color, connection_status::ConnectionStatus, DEFAULT_SESSION_DURATION, headset_data::SessionState, inter_client_msg::InterClientMsg, player_data_msg::PlayerDataMsg, player_data::{PlayerAttribute, Language}};
 use anyhow::Context;
 use futures::{FutureExt, StreamExt};
 use tokio::sync::mpsc;
@@ -25,7 +25,7 @@ pub async fn frontend_connection_process(ws: WebSocket, context_ref: MucoContext
 
     println!("{} connected", id);
 
-    context_ref.read().await.update_clients().await;
+    context_ref.write().await.status_generation += 1;
 
     while let Some(result) = frontend_ws_rcv.next().await {
         let msg = match result {
@@ -75,7 +75,6 @@ pub async fn process_client_msg(client_msg: ClientMsg, context_ref: &MucoContext
         Forget(unique_device_id) => {
             let mut context = context_ref.write().await;
             context.status.headsets.remove(&unique_device_id);
-            context.status.save(SAVE_DATA_PATH)?;
             UpdateClients
         }
         Kick(unique_device_id) => {
@@ -91,7 +90,6 @@ pub async fn process_client_msg(client_msg: ClientMsg, context_ref: &MucoContext
             if let ConnectionStatus::Connected(session_id) = headset.temp.connection_status {
                 let msg = InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Color(color)));
                 context.send_msg_to_player(session_id, msg).await;
-                context.status.save(SAVE_DATA_PATH)?;
             }
             UpdateClients
         }
@@ -102,7 +100,6 @@ pub async fn process_client_msg(client_msg: ClientMsg, context_ref: &MucoContext
             if let ConnectionStatus::Connected(session_id) = headset.temp.connection_status {
                 let msg = InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Language(language)));
                 context.send_msg_to_player(session_id, msg).await;
-                context.status.save(SAVE_DATA_PATH)?;
             }
             UpdateClients
         }
@@ -110,7 +107,6 @@ pub async fn process_client_msg(client_msg: ClientMsg, context_ref: &MucoContext
             let mut context = context_ref.write().await;
             let headset = context.status.headsets.get_mut(&unique_device_id).context("could not find headset with id {unique_device_id}")?;
             headset.persistent.name = name;
-            context.status.save(SAVE_DATA_PATH)?;
             UpdateClients
         }
         StartSession(unique_device_id) => {
@@ -174,7 +170,7 @@ async fn client_msg(id: &str, msg: Message, context_ref: &MucoContextRef) -> any
             let _ = sender.send(Ok(Message::text(reply)));
         }
         ServerResponse::UpdateClients => {
-            context_ref.read().await.update_clients().await;
+            context_ref.write().await.status_generation += 1;
         }
         ServerResponse::Nothing => {}
     }

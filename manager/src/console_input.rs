@@ -38,7 +38,7 @@ pub async fn process_console_input(input: &str, context_ref: &MucoContextRef) ->
             let status = Status::load(SAVE_DATA_PATH)?;
             let mut context = context_ref.write().await;
             context.status = status;
-            context.update_clients().await;
+            context.status_generation += 1;
         }
         "status" => {
             let status = context_ref.read().await.status.clone();
@@ -50,7 +50,7 @@ pub async fn process_console_input(input: &str, context_ref: &MucoContextRef) ->
             let response = process_client_msg(client_msg, context_ref).await?;
             match response {
                 ServerResponse::Reply(reply) => println!("{reply}"),
-                ServerResponse::UpdateClients => context_ref.read().await.update_clients().await,
+                ServerResponse::UpdateClients => context_ref.write().await.status_generation += 1,
                 ServerResponse::Nothing => {}
             }
         }
