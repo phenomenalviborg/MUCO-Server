@@ -15,7 +15,7 @@ impl Status {
     }
 
     pub fn save(&self, path: &str) -> anyhow::Result<()>{
-        let json = serde_json::to_string(self)?;
+        let json = serde_json::to_string_pretty(self)?;
         std::fs::write(path, json)?;
         Ok(())
     }
