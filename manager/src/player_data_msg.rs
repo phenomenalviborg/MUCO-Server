@@ -3,13 +3,13 @@ use std::io::{Cursor, Write};
 use anyhow::bail;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-use crate::player_data::PlayerAttribute;
+use crate::player_data::{PlayerAttribute, PlayerAttributeTag};
 
 #[derive(Debug)]
 pub enum PlayerDataMsg {
     Notify (PlayerAttribute),
     Set (PlayerAttribute),
-    _Request,
+    Request (PlayerAttributeTag),
 }
 
 impl PlayerDataMsg {
@@ -34,12 +34,25 @@ impl PlayerDataMsg {
 
     pub fn pack(&self, wtr: &mut impl Write) {
         match self {
-            PlayerDataMsg::Notify(_) => todo!(),
+            PlayerDataMsg::Notify(attribute) => {
+                wtr.write_u32::<LittleEndian>(0).unwrap();
+                attribute.pack(wtr);
+            }
             PlayerDataMsg::Set(attribute) => {
                 wtr.write_u32::<LittleEndian>(1).unwrap();
                 attribute.pack(wtr);
             }
-            PlayerDataMsg::_Request => todo!(),
+            PlayerDataMsg::Request (tag) => {
+                wtr.write_u32::<LittleEndian>(2).unwrap();
+                let tag_index = match tag {
+                    PlayerAttributeTag::DeviceId => 0,
+                    PlayerAttributeTag::_Color => 1,
+                    PlayerAttributeTag::_Trans => 2,
+                    PlayerAttributeTag::_Hands => 3,
+                    PlayerAttributeTag::_Language => 4,
+                };
+                wtr.write_u32::<LittleEndian>(tag_index).unwrap();
+            }
         }
     }
 }

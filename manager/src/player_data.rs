@@ -21,6 +21,15 @@ pub enum PlayerAttribute {
     Language (Language),
 }
 
+#[derive(Debug)]
+pub enum PlayerAttributeTag {
+    DeviceId,
+    _Color,
+    _Trans,
+    _Hands,
+    _Language,
+}
+
 impl PlayerAttribute {
     pub fn decode(input_buffer: &[u8], _sender: u32) -> anyhow::Result<PlayerAttribute> {
         let mut rdr = Cursor::new(&input_buffer);

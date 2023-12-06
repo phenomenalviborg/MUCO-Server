@@ -49,6 +49,7 @@ async fn main() {
         to_frontend_senders: HashMap::new(),
         status,
         status_generation: 0,
+        unknown_connections: Vec::new(),
     };
 
     let context_ref = Arc::new(RwLock::new(context));
@@ -84,12 +85,18 @@ async fn update_clients_periodically(context_ref: MucoContextRef) {
         let mut interval = tokio::time::interval(std::time::Duration::from_millis(500));
         loop {
             interval.tick().await;
-            let context = context_ref.read().await;
-            if context.status_generation != frontend_status_generation {
-                context.update_clients().await;
-                context.status.save(SAVE_DATA_PATH).unwrap();
-                frontend_status_generation = context.status_generation;
+            {
+                let context = context_ref.read().await;
+                if context.status_generation != frontend_status_generation {
+                    context.update_clients().await;
+                    context.status.save(SAVE_DATA_PATH).unwrap();
+                    frontend_status_generation = context.status_generation;
+                }
+                if context.unknown_connections.is_empty() {
+                    continue;
+                }
             }
+            context_ref.write().await.request_unknown_device_ids().await;
         }
     });
 }

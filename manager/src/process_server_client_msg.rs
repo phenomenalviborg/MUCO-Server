@@ -23,7 +23,7 @@ pub async fn process_server_client_msg(msg: ServerClientMsg, context_ref: &MucoC
                     return;
                 }
             };
-            
+
             match inter_client_msg {
                 InterClientMsg::_Interaction => {}
                 InterClientMsg::PlayerData (player_data_msg) => {
@@ -54,6 +54,8 @@ pub async fn process_server_client_msg(msg: ServerClientMsg, context_ref: &MucoC
                 }
                 InterClientMsg::_Ping => {}
             }
+
+            context_ref.write().await.get_or_request_unique_device_id(sender);
         }
     }
 }
