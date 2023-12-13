@@ -1,7 +1,7 @@
-use std::net::{Ipv4Addr, SocketAddr, IpAddr};
+use std::{net::{Ipv4Addr, SocketAddr, IpAddr}, collections::VecDeque};
 
 use local_ip_address::local_ip;
-use msgs::client_server_msg::ClientServerMsg;
+use msgs::{client_server_msg::{ClientServerMsg, Address}, server_client_msg::ServerClientMsg};
 use tokio::net::TcpListener;
 use crate::client_db::ClientDb;
 
@@ -21,6 +21,8 @@ async fn main() {
 
     let mut client_db = ClientDb::new();
 
+    let mut disconnected_client_queue = VecDeque::new();
+
     loop {
         tokio::select! {
             result = listener.accept() => {
@@ -29,7 +31,10 @@ async fn main() {
             }
             result = main_from_client.recv() => {
                 let (session_id, msg) = result.unwrap();
-                client_db.process_message(msg, session_id).await;
+                client_db.process_message(msg, session_id, &mut disconnected_client_queue).await;
+                while let Some(disconnected_client) = disconnected_client_queue.pop_front() {
+                    client_db.send_server_client_msg(Address::All, ServerClientMsg::ClientDisconnected(disconnected_client), &mut disconnected_client_queue).await;
+                }
             }
         }
     }

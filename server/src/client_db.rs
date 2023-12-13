@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, collections::VecDeque};
 
 use msgs::{client_server_msg::{ClientServerMsg, Address}, server_client_msg::ServerClientMsg, client_type::ClientType};
 use tokio::{net::TcpStream, io::{AsyncReadExt, AsyncWriteExt}};
@@ -36,7 +36,7 @@ impl ClientDb {
         self.clients.retain(|client| client.session_id != session_id)
     }
 
-    pub async fn send_server_client_msg(&mut self, address: Address, msg: ServerClientMsg) {
+    pub async fn send_server_client_msg(&mut self, address: Address, msg: ServerClientMsg, disconnected_client_queue: &mut VecDeque<u32>) {
         let mut i = 0;
         while i < self.clients.len() {
             let client = &self.clients[i];
@@ -47,6 +47,7 @@ impl ClientDb {
                     Err(e) => {
                         println!("error sending message: {e}");
                         println!("removing client: {}", client.session_id);
+                        disconnected_client_queue.push_back(client.session_id);
                         self.clients.remove(i);
                         continue;
                     }
@@ -56,14 +57,14 @@ impl ClientDb {
         }
     }
 
-    pub async fn process_message(&mut self, msg: ClientServerMsg, session_id: u32) {
+    pub async fn process_message(&mut self, msg: ClientServerMsg, session_id: u32, disconnected_client_queue: &mut VecDeque<u32>) {
         match msg {
             ClientServerMsg::Disconnect => {
                 self.remove(session_id);
-                self.send_server_client_msg(Address::All, ServerClientMsg::ClientDisconnected(session_id)).await;
+                self.send_server_client_msg(Address::All, ServerClientMsg::ClientDisconnected(session_id), disconnected_client_queue).await;
             }
             ClientServerMsg::BinaryMessageTo(address, bytes) => {
-                self.send_server_client_msg(address, ServerClientMsg::InterClient(session_id, bytes)).await;
+                self.send_server_client_msg(address, ServerClientMsg::InterClient(session_id, bytes), disconnected_client_queue).await;
             }
             ClientServerMsg::SetClientType(client_type) => {
                 let client = self.get_mut(session_id).unwrap();
@@ -71,7 +72,7 @@ impl ClientDb {
 
                 match client_type {
                     ClientType::Player => {
-                        self.send_server_client_msg(Address::Other (session_id), ServerClientMsg::ClientConnected(session_id)).await;
+                        self.send_server_client_msg(Address::Other (session_id), ServerClientMsg::ClientConnected(session_id), disconnected_client_queue).await;
                     }
                     ClientType::Manager => {}
                 }
