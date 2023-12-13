@@ -75,6 +75,12 @@ pub async fn process_client_msg(client_msg: ClientMsg, context_ref: &MucoContext
         Echo(echo_string) => Reply(echo_string),
         Forget(unique_device_id) => {
             let mut context = context_ref.write().await;
+            if let Some(headset_data) = context.status.headsets.get(&unique_device_id) {
+                if let ConnectionStatus::Connected(connection_id) = headset_data.temp.connection_status {
+                    context.connection_id_to_player.remove(&connection_id);
+                }
+            }
+            
             context.status.headsets.remove(&unique_device_id);
             UpdateClients
         }
