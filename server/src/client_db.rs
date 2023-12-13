@@ -77,6 +77,10 @@ impl ClientDb {
                     ClientType::Manager => {}
                 }
             }
+            ClientServerMsg::Kick(session_id) => {
+                self.remove(session_id);
+                self.send_server_client_msg(Address::All, ServerClientMsg::ClientDisconnected(session_id), disconnected_client_queue).await;
+            }
         }
     }
 }

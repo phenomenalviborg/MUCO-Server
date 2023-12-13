@@ -27,6 +27,7 @@ pub enum ClientServerMsg {
     Disconnect,
     BinaryMessageTo (Address, Vec<u8>),
     SetClientType (ClientType),
+    Kick (u32),
 }
 
 impl ClientServerMsg {
@@ -64,6 +65,10 @@ impl ClientServerMsg {
                 let client_type_index = rdr.read_u32::<LittleEndian>().unwrap();
                 let client_type = ClientType::from_u32(client_type_index).context("unsupported client id")?;
                 ClientServerMsg::SetClientType (client_type)
+            }
+            5 => {
+                let session_id = rdr.read_u32::<LittleEndian>().unwrap();
+                ClientServerMsg::Kick (session_id)
             }
             type_index => {
                 bail!("unsupported msg type: {type_index}");
@@ -104,6 +109,11 @@ impl ClientServerMsg {
                 wtr.write_u32::<LittleEndian>(8).unwrap();
                 wtr.write_u32::<LittleEndian>(4).unwrap();
                 wtr.write_u32::<LittleEndian>(client_type.as_u32()).unwrap();
+            }
+            ClientServerMsg::Kick(session_id) => {
+                wtr.write_u32::<LittleEndian>(8).unwrap();
+                wtr.write_u32::<LittleEndian>(5).unwrap();
+                wtr.write_u32::<LittleEndian>(*session_id).unwrap();
             }
         }
     }

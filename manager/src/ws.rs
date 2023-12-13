@@ -3,6 +3,7 @@ use std::time::{UNIX_EPOCH, SystemTime};
 use crate::{context::MucoContextRef, color::Color, connection_status::ConnectionStatus, DEFAULT_SESSION_DURATION, headset_data::SessionState, inter_client_msg::InterClientMsg, player_data_msg::PlayerDataMsg, player_data::{PlayerAttribute, Language}};
 use anyhow::Context;
 use futures::{FutureExt, StreamExt};
+use msgs::client_server_msg::ClientServerMsg;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use uuid::Uuid;
@@ -87,8 +88,11 @@ pub async fn process_client_msg(client_msg: ClientMsg, context_ref: &MucoContext
         Kick(unique_device_id) => {
             let mut context = context_ref.write().await;
             let headset = context.status.headsets.get_mut(&unique_device_id).context("could not find headset with id {unique_device_id}")?;
-            headset.temp.connection_status = ConnectionStatus::Disconnected;
-            UpdateClients
+            if let ConnectionStatus::Connected(session_id) = headset.temp.connection_status {
+                context.to_relay_server_process.send(ClientServerMsg::Kick(session_id)).await?;
+            }
+            
+            Nothing
         }
         SetColor(unique_device_id, color) => {
             let mut context = context_ref.write().await;
