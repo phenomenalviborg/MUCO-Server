@@ -6,19 +6,18 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use crate::dequeue::dequeue_msg;
 
 #[derive(Debug, Clone)]
-pub enum ServerClientMsg {
+pub enum ServerClientMsg<'a> {
     AssignSessionId (u32),
     ClientConnected (u32),
     ClientDisconnected (u32),
-    InterClient (u32, Vec<u8>),
+    InterClient (u32, &'a[u8]),
 }
 
-impl ServerClientMsg {
-    pub fn dequeue_and_decode(input_buffer: &mut Vec<u8>) -> Option<anyhow::Result<ServerClientMsg>> {
+impl<'a> ServerClientMsg<'a> {
+    pub fn dequeue_and_decode_(input_buffer: &mut Vec<u8>) -> Option<(usize, anyhow::Result<ServerClientMsg>)> {
         let Some((begin, end)) = dequeue_msg(input_buffer) else { return None };
         let msg = Self::decode(&input_buffer[begin..end]);
-        input_buffer.drain(..end);
-        Some(msg)
+        Some((end, msg))
     }
 
     pub fn decode(input_buffer: &[u8]) -> anyhow::Result<ServerClientMsg> {
@@ -42,7 +41,7 @@ impl ServerClientMsg {
             }
             3 => {
                 let sender = rdr.read_u32::<LittleEndian>().unwrap();
-                let bs = input_buffer[begin+4..].to_vec();
+                let bs = &input_buffer[begin+4..];
                 ServerClientMsg::InterClient (sender, bs)
             }
             type_index => {

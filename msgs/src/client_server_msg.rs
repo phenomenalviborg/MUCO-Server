@@ -23,19 +23,18 @@ impl Address {
 }
 
 #[derive(Debug, Clone)]
-pub enum ClientServerMsg {
+pub enum ClientServerMsg<'a> {
     Disconnect,
-    BinaryMessageTo (Address, Vec<u8>),
+    BinaryMessageTo (Address, &'a [u8]),
     SetClientType (ClientType),
     Kick (u32),
 }
 
-impl ClientServerMsg {
-    pub fn dequeue_and_decode(input_buffer: &mut Vec<u8>, sender: u32) -> Option<anyhow::Result<ClientServerMsg>> {
+impl<'a> ClientServerMsg<'a> {
+    pub fn dequeue_and_decode(input_buffer: &[u8], sender: u32) -> Option<(usize, anyhow::Result<ClientServerMsg>)> {
         let Some((begin, end)) = dequeue_msg(input_buffer) else { return None };
         let msg = Self::decode(&input_buffer[begin..end], sender);
-        input_buffer.drain(..end);
-        Some(msg)
+        Some((end, msg))
     }
 
     pub fn decode(input_buffer: &[u8], sender: u32) -> anyhow::Result<ClientServerMsg> {
@@ -49,16 +48,16 @@ impl ClientServerMsg {
                 ClientServerMsg::Disconnect
             }
             1 => {
-                let bs = input_buffer[begin..].to_vec();
+                let bs = &input_buffer[begin..];
                 ClientServerMsg::BinaryMessageTo (Address::All, bs)
             }
             2 => {
-                let bs = input_buffer[begin..].to_vec();
+                let bs = &input_buffer[begin..];
                 ClientServerMsg::BinaryMessageTo (Address::Other (sender), bs)
             }
             3 => {
                 let session_id = rdr.read_u32::<LittleEndian>().unwrap();
-                let bs = input_buffer[begin+4..].to_vec();
+                let bs = &input_buffer[begin+4..];
                 ClientServerMsg::BinaryMessageTo (Address::Client(session_id), bs)
             }
             4 => {

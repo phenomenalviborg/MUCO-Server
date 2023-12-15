@@ -43,7 +43,7 @@ impl MucoContext {
     pub async fn send_msg_to_player(&mut self, connection_id: u32, inter_client_msg: InterClientMsg) {
         let mut inter_client_msg_bytes = Vec::new();
         inter_client_msg.pack(&mut inter_client_msg_bytes);
-        let client_server_msg = ClientServerMsg::BinaryMessageTo (Address::Client(connection_id), inter_client_msg_bytes);
+        let client_server_msg = ClientServerMsg::BinaryMessageTo (Address::Client(connection_id), &inter_client_msg_bytes);
         let mut client_server_msg_bytes = Vec::new();
         client_server_msg.pack(&mut client_server_msg_bytes);
         self.to_relay_server_process.send(client_server_msg_bytes).await.unwrap();

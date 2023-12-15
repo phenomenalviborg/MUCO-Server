@@ -2,8 +2,7 @@ use std::io::Cursor;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 
-
-pub fn dequeue_msg(input_buffer: &mut Vec<u8>) -> Option<(usize, usize)> {
+pub fn dequeue_msg(input_buffer: &[u8]) -> Option<(usize, usize)> {
     if input_buffer.len() < 4 {
         return None
     }

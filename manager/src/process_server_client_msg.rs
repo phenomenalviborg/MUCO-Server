@@ -2,7 +2,7 @@ use msgs::server_client_msg::ServerClientMsg;
 
 use crate::{headset_data::HeadsetData, context::MucoContextRef, inter_client_msg::InterClientMsg, player_data_msg::PlayerDataMsg, player_data::PlayerAttribute, connection_status::ConnectionStatus};
 
-pub async fn process_server_client_msg(msg: ServerClientMsg, context_ref: &MucoContextRef) {
+pub async fn process_server_client_msg(msg: ServerClientMsg<'_>, context_ref: &MucoContextRef) {
     match msg {
         ServerClientMsg::AssignSessionId(session_id) => {
             println!("session id: {session_id}");

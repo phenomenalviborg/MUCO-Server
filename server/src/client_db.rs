@@ -89,7 +89,7 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
                     }
                     input_buffer.extend(&static_buffer[..len]);
                     
-                    while let Some(msg) = ClientServerMsg::dequeue_and_decode(&mut input_buffer, session_id) {
+                    while let Some((cursor, msg)) = ClientServerMsg::dequeue_and_decode(&mut input_buffer, session_id) {
                         let msg = match msg {
                             Ok(msg) => msg,
                             Err(e) => {
@@ -98,31 +98,35 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
                             }
                         };
 
-                        let response = match msg {
+                        if let Some(response) = match msg {
                             ClientServerMsg::Disconnect => break,
                             ClientServerMsg::BinaryMessageTo(address, content) => {
                                 let msg = ServerClientMsg::InterClient(session_id, content);
                                 let mut output_buffer: Vec<u8> = Vec::new();
                                 msg.pack(&mut output_buffer);
-                                BroadcastMsg::Send(address, output_buffer)
+                                Some(BroadcastMsg::Send(address, output_buffer))
                             }
                             ClientServerMsg::SetClientType(client_type) => {
                                 if client_type != ClientType::Player {
-                                    continue;
+                                    None
                                 }
-                                let address = Address::Other(session_id);
-                                let msg = ServerClientMsg::ClientConnected(session_id);
-                                let mut output_buffer: Vec<u8> = Vec::new();
-                                msg.pack(&mut output_buffer);
-                                BroadcastMsg::Send(address, output_buffer)
+                                else {
+                                    let address = Address::Other(session_id);
+                                    let msg = ServerClientMsg::ClientConnected(session_id);
+                                    let mut output_buffer: Vec<u8> = Vec::new();
+                                    msg.pack(&mut output_buffer);
+                                    Some(BroadcastMsg::Send(address, output_buffer))
+                                }
                             }
-                            ClientServerMsg::Kick(to_kick) => BroadcastMsg::Kick(to_kick),
-                        };
-
-                        match tx.send(response) {
-                            Ok(_) => {}
-                            Err(e) => println!("error while trying to broadcast msg: {e}"),
+                            ClientServerMsg::Kick(to_kick) => Some(BroadcastMsg::Kick(to_kick)),
+                        } {
+                            match tx.send(response) {
+                                Ok(_) => {}
+                                Err(e) => println!("error while trying to broadcast msg: {e}"),
+                            }
                         }
+
+                        input_buffer.drain(..cursor);
                     }
                 }
             }
@@ -138,10 +142,3 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
         }
     });
 }
-
-//pub async fn send_client_msg(msg: ServerClientMsg, socket: &mut TcpStream, output_buffer: &mut Vec<u8>) -> anyhow::Result<()> {
-//    output_buffer.clear();
-//    msg.pack(output_buffer);
-//    socket.write_all(&output_buffer).await?;
-//    Ok(())
-//}
