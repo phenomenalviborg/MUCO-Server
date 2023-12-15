@@ -2,7 +2,7 @@ use std::{sync::Arc, collections::HashMap, convert::Infallible};
 
 use console_input::console_input_thread;
 use context::{MucoContextRef, MucoContext};
-use msgs::{client_server_msg::ClientServerMsg, client_type::ClientType};
+use msgs::{client_server_msg::ClientServerMsg, client_type::ClientType, server_client_msg::ServerClientMsg};
 use process_server_client_msg::process_server_client_msg;
 use relay_server_connection_process::spawn_relay_server_connection_process;
 use status::Status;
@@ -79,7 +79,15 @@ async fn main() {
     update_clients_periodically(context_ref.clone()).await;
 
     loop {
-        let Some(msg) = main_from_server.recv().await else { break };
+        let Some(msg_bytes) = main_from_server.recv().await else { break };
+        let result = ServerClientMsg::decode(&msg_bytes);
+        let msg = match result {
+            Ok(msg) => msg,
+            Err(e) => {
+                println!("error while decoding server client msg: {e}");
+                continue;
+            }
+        };
         process_server_client_msg(msg, &context_ref).await;
     }
 }
