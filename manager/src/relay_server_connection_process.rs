@@ -1,12 +1,11 @@
-use msgs::{server_client_msg::ServerClientMsg, client_server_msg::ClientServerMsg};
+use msgs::server_client_msg::ServerClientMsg;
 use tokio::{net::TcpStream, io::{AsyncReadExt, AsyncWriteExt}};
 
-pub fn spawn_relay_server_connection_process(server_to_main: tokio::sync::mpsc::Sender<ServerClientMsg>) -> tokio::sync::mpsc::Sender<ClientServerMsg> {
-    let (main_to_server, mut server_from_main) = tokio::sync::mpsc::channel::<ClientServerMsg>(100);
+pub fn spawn_relay_server_connection_process(server_to_main: tokio::sync::mpsc::Sender<ServerClientMsg>) -> tokio::sync::mpsc::Sender<Vec<u8>> {
+    let (main_to_server, mut server_from_main) = tokio::sync::mpsc::channel::<Vec<u8>>(100);
     tokio::spawn(async move {
         let mut static_buffer = [0; 1024];
         let mut input_buffer = Vec::new();
-        let mut output_buffer = Vec::new();
 
         let mut stream = TcpStream::connect("localhost:1302").await.unwrap();
 
@@ -44,9 +43,7 @@ pub fn spawn_relay_server_connection_process(server_to_main: tokio::sync::mpsc::
                         }
                     };
 
-                    output_buffer.clear();
-                    msg.pack(&mut output_buffer);
-                    stream.write_all(&output_buffer).await.unwrap();
+                    stream.write_all(&msg).await.unwrap();
                 }
             }
         }

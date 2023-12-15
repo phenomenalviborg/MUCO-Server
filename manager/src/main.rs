@@ -41,7 +41,12 @@ async fn main() {
     let (server_to_main, mut main_from_server) = tokio::sync::mpsc::channel(100);
     let to_relay_server_process = spawn_relay_server_connection_process(server_to_main);
 
-    to_relay_server_process.send(ClientServerMsg::SetClientType (ClientType::Manager)).await.unwrap();
+    {
+        let msg = ClientServerMsg::SetClientType (ClientType::Manager);
+        let mut bytes = Vec::new();
+        msg.pack(&mut bytes);
+        to_relay_server_process.send(bytes).await.unwrap();
+    }
     
     let context = MucoContext {
         to_relay_server_process,
