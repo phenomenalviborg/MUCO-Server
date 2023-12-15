@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use msgs::{client_server_msg::ClientServerMsg, server_client_msg::ServerClientMsg, client_type::ClientType};
+use msgs::{client_server_msg::{ClientServerMsg, Address}, server_client_msg::ServerClientMsg, client_type::ClientType};
 use tokio::{net::TcpStream, io::{AsyncReadExt, AsyncWriteExt}, sync::broadcast};
 
 use crate::broadcast_msg::BroadcastMsg;
@@ -52,49 +52,22 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
                         }
                     };
 
-                    let response = match broadcast_msg {
-                        BroadcastMsg::ClientDisconnected(sender) => {
-                            ServerClientMsg::ClientDisconnected(sender)
-                        }
-                        BroadcastMsg::ClientServerMsg(sender, msg) => {
-                            match msg {
-                                ClientServerMsg::Disconnect => {
-                                    if sender == session_id {
+                    match broadcast_msg {
+                        BroadcastMsg::Send(address, msg) => {
+                            if address.includes(session_id) {
+                                match send_client_msg(msg, &mut socket, &mut output_buffer).await {
+                                    Ok(_) => {},
+                                    Err(e) => {
+                                        println!("disconnecting because of error while writing to client: {e}");
                                         break;
                                     }
-                                    continue;
-                                }
-                                ClientServerMsg::BinaryMessageTo(to, content) => {
-                                    if !to.includes(session_id) {
-                                        continue
-                                    }
-                                    ServerClientMsg::InterClient(sender, content)
-                                }
-                                ClientServerMsg::SetClientType(new_client_typ) => {
-                                    if sender == session_id {
-                                        continue;
-                                    }
-                                    else if new_client_typ == ClientType::Player {
-                                        ServerClientMsg::ClientConnected(sender)
-                                    }
-                                    else {
-                                        continue;
-                                    }
-                                }
-                                ClientServerMsg::Kick(to_kick) => {
-                                    if session_id == to_kick {
-                                        break;
-                                    }
-                                    continue;
                                 }
                             }
                         }
-                    };
-                    match send_client_msg(response, &mut socket, &mut output_buffer).await {
-                        Ok(_) => {},
-                        Err(e) => {
-                            println!("disconnecting because of error while writing to client: {e}");
-                            break;
+                        BroadcastMsg::Kick(to_kick) => {
+                            if to_kick == session_id {
+                                break;
+                            }
                         }
                     }
                 }
@@ -113,23 +86,40 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
                     input_buffer.extend(&static_buffer[..len]);
                     
                     while let Some(msg) = ClientServerMsg::dequeue_and_decode(&mut input_buffer, session_id) {
-                        match msg {
-                            Ok(msg) => {
-                                match tx.send(BroadcastMsg::ClientServerMsg(session_id, msg)) {
-                                    Ok(_) => {}
-                                    Err(e) => println!("error while sending inter msg: {e}")
-                                };
+                        let msg = match msg {
+                            Ok(msg) => msg,
+                            Err(e) => {
+                                println!("error while decode msg: {e}");
+                                break;
                             }
-                            Err(e) => println!("error while decode msg: {e}")
+                        };
+
+                        let response = match msg {
+                            ClientServerMsg::Disconnect => break,
+                            ClientServerMsg::BinaryMessageTo(address, content) => BroadcastMsg::Send(address, ServerClientMsg::InterClient(session_id, content)),
+                            ClientServerMsg::SetClientType(client_type) => {
+                                if client_type != ClientType::Player {
+                                    continue;
+                                }
+                                let address = Address::Other(session_id);
+                                let msg = ServerClientMsg::ClientConnected(session_id);
+                                BroadcastMsg::Send(address, msg)
+                            }
+                            ClientServerMsg::Kick(to_kick) => BroadcastMsg::Kick(to_kick),
+                        };
+
+                        match tx.send(response) {
+                            Ok(_) => {}
+                            Err(e) => println!("error while trying to broadcast msg: {e}"),
                         }
                     }
                 }
             }
         }
-        match tx.send(BroadcastMsg::ClientDisconnected(session_id)) {
+        match tx.send(BroadcastMsg::Send(Address::All, ServerClientMsg::ClientDisconnected(session_id))) {
             Ok(_) => {}
-            Err(e) => println!("error while sending disconnect msg: {e}")
-        };
+            Err(e) => println!("error while trying to broadcast exit msg: {e}"),
+        }
     });
 }
 
