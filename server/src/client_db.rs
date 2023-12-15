@@ -28,13 +28,17 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
     tokio::spawn(async move {
         let mut static_buffer = [0; 1024];
         let mut input_buffer = Vec::new();
-        let mut output_buffer: Vec<u8> = Vec::new();
 
-        match send_client_msg(ServerClientMsg::AssignSessionId(session_id), &mut socket, &mut output_buffer).await {
-            Ok(_) => {},
-            Err(e) => {
-                println!("disconnecting because of error while writing to client: {e}");
-                return;
+        {
+            let mut output_buffer = Vec::new();
+            let msg = ServerClientMsg::AssignSessionId(session_id);
+            msg.pack(&mut output_buffer);
+            match socket.write_all(&output_buffer).await {
+                Ok(_) => {},
+                Err(e) => {
+                    println!("disconnecting because of error while writing to client: {e}");
+                    return;
+                }
             }
         }
         
@@ -53,12 +57,12 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
                     };
 
                     match broadcast_msg {
-                        BroadcastMsg::Send(address, msg) => {
+                        BroadcastMsg::Send(address, output_buffer) => {
                             if address.includes(session_id) {
-                                match send_client_msg(msg, &mut socket, &mut output_buffer).await {
+                                match socket.write_all(&output_buffer).await {
                                     Ok(_) => {},
                                     Err(e) => {
-                                        println!("disconnecting because of error while writing to client: {e}");
+                                        println!("disconnecting because of error while writing to socket: {e}");
                                         break;
                                     }
                                 }
@@ -96,14 +100,21 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
 
                         let response = match msg {
                             ClientServerMsg::Disconnect => break,
-                            ClientServerMsg::BinaryMessageTo(address, content) => BroadcastMsg::Send(address, ServerClientMsg::InterClient(session_id, content)),
+                            ClientServerMsg::BinaryMessageTo(address, content) => {
+                                let msg = ServerClientMsg::InterClient(session_id, content);
+                                let mut output_buffer: Vec<u8> = Vec::new();
+                                msg.pack(&mut output_buffer);
+                                BroadcastMsg::Send(address, output_buffer)
+                            }
                             ClientServerMsg::SetClientType(client_type) => {
                                 if client_type != ClientType::Player {
                                     continue;
                                 }
                                 let address = Address::Other(session_id);
                                 let msg = ServerClientMsg::ClientConnected(session_id);
-                                BroadcastMsg::Send(address, msg)
+                                let mut output_buffer: Vec<u8> = Vec::new();
+                                msg.pack(&mut output_buffer);
+                                BroadcastMsg::Send(address, output_buffer)
                             }
                             ClientServerMsg::Kick(to_kick) => BroadcastMsg::Kick(to_kick),
                         };
@@ -116,16 +127,21 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
                 }
             }
         }
-        match tx.send(BroadcastMsg::Send(Address::All, ServerClientMsg::ClientDisconnected(session_id))) {
-            Ok(_) => {}
-            Err(e) => println!("error while trying to broadcast exit msg: {e}"),
+        {
+            let msg = ServerClientMsg::ClientDisconnected(session_id);
+            let mut output_buffer: Vec<u8> = Vec::new();
+            msg.pack(&mut output_buffer);
+            match tx.send(BroadcastMsg::Send(Address::All, output_buffer)) {
+                Ok(_) => {}
+                Err(e) => println!("error while trying to broadcast exit msg: {e}"),
+            }
         }
     });
 }
 
-pub async fn send_client_msg(msg: ServerClientMsg, socket: &mut TcpStream, output_buffer: &mut Vec<u8>) -> anyhow::Result<()> {
-    output_buffer.clear();
-    msg.pack(output_buffer);
-    socket.write_all(&output_buffer).await?;
-    Ok(())
-}
+//pub async fn send_client_msg(msg: ServerClientMsg, socket: &mut TcpStream, output_buffer: &mut Vec<u8>) -> anyhow::Result<()> {
+//    output_buffer.clear();
+//    msg.pack(output_buffer);
+//    socket.write_all(&output_buffer).await?;
+//    Ok(())
+//}

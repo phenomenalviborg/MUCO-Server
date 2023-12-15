@@ -1,7 +1,7 @@
-use msgs::{client_server_msg::Address, server_client_msg::ServerClientMsg};
+use msgs::client_server_msg::Address;
 
 #[derive(Debug, Clone)]
 pub enum BroadcastMsg {
-    Send(Address, ServerClientMsg),
+    Send(Address, Vec<u8>),
     Kick(u32),
 }
