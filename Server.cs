@@ -50,7 +50,7 @@ class Server
         }
         Console.WriteLine("\n");
 
-        await PlanB();
+        await PlanA();
     }
 
     public async Task PlanB() {
@@ -150,11 +150,12 @@ class Server
             TryPopMessage(client_index);
             await ProcessMessages();
         }
-    }
+    }      
+    
 
     public async Task ProcessMessages()
     {
-        while(messages.Count > 0)
+        while(messages.Count > 0) 
         {
             var (id, message) = messages.Dequeue();
             await ProcessMessage(id, message);
