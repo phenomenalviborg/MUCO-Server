@@ -314,7 +314,7 @@ class Server
                 var toClientIndex = GetClientIndex(toClientId);
                 var toClient = clients[toClientIndex];
                 var data = new List<byte>();
-                Serialize.SerializeInt(data, (int)ServerToClientMessageType.BroadcastBytes);
+                Serialize.SerializeInt(data, (int)ServerToClientMessageType.BinaryMessageFrom);
                 Serialize.SerializeInt(data, clientId);
                 data.AddSlice(restBuffer);
                 await SendMessageClient(data, toClient);
