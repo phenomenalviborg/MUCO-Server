@@ -1,0 +1,24 @@
+[workspace]
+
+resolver = "2"
+
+members = [
+    "manager",
+    "msgs",
+    "server",
+]
+
+[workspace.dependencies]
+tokio = { version = "1.28" }
+tokio-stream = "0.1"
+byteorder = "1.4"
+local-ip-address = "0.5"
+anyhow = "1.0"
+
+warp = "0.3"
+serde = "1.0"
+serde_json = "1.0"
+futures = { version = "0.3", default-features = false }
+uuid = "1.1"
+
+pollster = "0.3"
