@@ -22,3 +22,5 @@ futures = { version = "0.3", default-features = false }
 uuid = "1.1"
 
 pollster = "0.3"
+
+mdns-sd = "0.11"

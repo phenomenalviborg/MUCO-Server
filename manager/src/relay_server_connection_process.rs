@@ -1,13 +1,18 @@
 use msgs::dequeue::dequeue_msg;
 use tokio::{net::TcpStream, io::{AsyncReadExt, AsyncWriteExt}};
 
+use crate::discover_server::find_local_server_ip;
+
 pub fn spawn_relay_server_connection_process(server_to_main: tokio::sync::mpsc::Sender<Vec<u8>>) -> tokio::sync::mpsc::Sender<Vec<u8>> {
+    let addr = find_local_server_ip().unwrap();
+    println!("found server at address: {addr}");
+
     let (main_to_server, mut server_from_main) = tokio::sync::mpsc::channel::<Vec<u8>>(100);
     tokio::spawn(async move {
         let mut static_buffer = [0; 1024];
         let mut input_buffer = Vec::new();
 
-        let mut stream = TcpStream::connect("localhost:1302").await.unwrap();
+        let mut stream = TcpStream::connect(addr).await.unwrap();
 
         loop {
             tokio::select! {

@@ -17,4 +17,6 @@ anyhow = { workspace = true }
 
 byteorder = { workspace = true }
 
+mdns-sd = { workspace = true }
+
 msgs = { path = "../msgs" }

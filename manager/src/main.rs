@@ -13,6 +13,7 @@ mod color;
 mod connection_status;
 mod console_input;
 mod context;
+mod discover_server;
 mod handler;
 mod headset_data;
 mod inter_client_msg;

@@ -7,5 +7,6 @@ edition = "2021"
 tokio = { workspace = true, features = ["full"] }
 local-ip-address = { workspace = true }
 anyhow = { workspace = true }
+mdns-sd = { workspace = true }
 
 msgs = { path = "../msgs" }
