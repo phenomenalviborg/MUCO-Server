@@ -62,6 +62,7 @@ pub enum ClientMsg {
     SetEnvironment(String, String),
     SetEnvironmentCode(String, String),
     RemoveEnvironment(String),
+    RenameEnvironment(String, String),
 }
 
 pub enum ServerResponse {
@@ -202,6 +203,19 @@ pub async fn process_client_msg(client_msg: ClientMsg, context_ref: &MucoContext
             let mut context = context_ref.write().await;
             let environment_codes = &mut context.status.environment_codes;
             environment_codes.remove(&name);
+            UpdateClients
+        }
+        RenameEnvironment(old_name, new_name) => {
+            let mut context = context_ref.write().await;
+            let environment_codes = &mut context.status.environment_codes;
+            let code = environment_codes.get(&old_name).unwrap();
+            environment_codes.insert(new_name.clone(), code.clone());
+            environment_codes.remove(&old_name);
+            for (_, headset) in &mut context.status.headsets {
+                if headset.persistent.environment_name == old_name {
+                    headset.persistent.environment_name = new_name.clone();
+                }
+            }
             UpdateClients
         }
     })
