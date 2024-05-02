@@ -61,6 +61,7 @@ pub enum ClientMsg {
     Unpause(String),
     SetEnvironment(String, String),
     SetEnvironmentCode(String, String),
+    RemoveEnvironment(String),
 }
 
 pub enum ServerResponse {
@@ -195,6 +196,12 @@ pub async fn process_client_msg(client_msg: ClientMsg, context_ref: &MucoContext
                     context.send_msg_to_player(session_id, msg).await;
                 }
             }
+            UpdateClients
+        }
+        RemoveEnvironment(name) => {
+            let mut context = context_ref.write().await;
+            let environment_codes = &mut context.status.environment_codes;
+            environment_codes.remove(&name);
             UpdateClients
         }
     })
