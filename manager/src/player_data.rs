@@ -7,9 +7,9 @@ use crate::color::Color;
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum Language {
-    English,
-    Dansk,
-    Deutsch,
+    EnGB,
+    DaDK,
+    DeDE,
 }
 
 #[derive(Debug)]
@@ -77,9 +77,9 @@ impl PlayerAttribute {
             PlayerAttribute::Language (language) => {
                 wtr.write_u32::<LittleEndian>(4).unwrap();
                 let language_index = match language {
-                    Language::English => 0,
-                    Language::Dansk => 1,
-                    Language::Deutsch => 2,
+                    Language::EnGB => 0,
+                    Language::DaDK => 1,
+                    Language::DeDE => 2,
                 };
                 wtr.write_u32::<LittleEndian>(language_index).unwrap();
             }
