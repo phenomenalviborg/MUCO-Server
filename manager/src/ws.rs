@@ -55,11 +55,12 @@ pub enum ClientMsg {
     SetColor(String, Color),
     SetName(String, String),
     SetLanguage(String, Language),
-    SetEnvironmentCode(String, String),
     StartSession(String),
     ExtendSession(String, i64),
     Pause(String),
     Unpause(String),
+    SetEnvironment(String, String),
+    SetEnvironmentCode(String, String),
 }
 
 pub enum ServerResponse {
@@ -117,16 +118,6 @@ pub async fn process_client_msg(client_msg: ClientMsg, context_ref: &MucoContext
             }
             UpdateClients
         }
-        SetEnvironmentCode(unique_device_id, code) => {
-            let mut context = context_ref.write().await;
-            let headset = context.status.headsets.get_mut(&unique_device_id).context("could not find headset with id {unique_device_id}")?;
-            headset.persistent.environment_code = code.clone();
-            if let ConnectionStatus::Connected(session_id) = headset.temp.connection_status {
-                let msg = InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::EnvironmentCode(code)));
-                context.send_msg_to_player(session_id, msg).await;
-            }
-            UpdateClients
-        }
         SetName(unique_device_id, name) => {
             let mut context = context_ref.write().await;
             let headset = context.status.headsets.get_mut(&unique_device_id).context("could not find headset with id {unique_device_id}")?;
@@ -175,6 +166,36 @@ pub async fn process_client_msg(client_msg: ClientMsg, context_ref: &MucoContext
                     UpdateClients
                 }
             }
+        }
+        SetEnvironment(unique_device_id, name) => {
+            let mut context = context_ref.write().await;
+            let code = context.status.environment_codes.get(&name).context("could not find environment")?.to_owned();
+            let headset = context.status.headsets.get_mut(&unique_device_id).context("could not find headset with id {unique_device_id}")?;
+            headset.persistent.environment_name = name;
+            if let ConnectionStatus::Connected(session_id) = headset.temp.connection_status {
+                let msg = InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::EnvironmentCode(code)));
+                context.send_msg_to_player(session_id, msg).await;
+            }
+            UpdateClients
+        }
+        SetEnvironmentCode(name, code) => {
+            let mut context = context_ref.write().await;
+            let environment_codes = &mut context.status.environment_codes;
+            environment_codes.insert(name.clone(), code.clone());
+            let mut headsets_to_update = Vec::new();
+            for (headset_name, headset) in &context.status.headsets {
+                if headset.persistent.environment_name == name {
+                    headsets_to_update.push(headset_name.clone());
+                }
+            }
+            for name in headsets_to_update {
+                let headset = context.get_headset_mut(name).unwrap();
+                if let ConnectionStatus::Connected(session_id) = headset.temp.connection_status {
+                    let msg = InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::EnvironmentCode(code.clone())));
+                    context.send_msg_to_player(session_id, msg).await;
+                }
+            }
+            UpdateClients
         }
     })
 }

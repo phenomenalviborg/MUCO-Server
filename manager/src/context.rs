@@ -5,7 +5,7 @@ use msgs::client_server_msg::{ClientServerMsg, Address};
 use tokio::sync::{RwLock, mpsc};
 use warp::filters::ws::Message;
 
-use crate::{status::Status, headset_data::HeadsetData, connection_status::ConnectionStatus, inter_client_msg::InterClientMsg, player_data_msg::PlayerDataMsg, player_data::PlayerAttributeTag};
+use crate::{connection_status::ConnectionStatus, headset_data::{HeadsetData, DEFAULT_ENVIRONMENT_CODE}, inter_client_msg::InterClientMsg, player_data::PlayerAttributeTag, player_data_msg::PlayerDataMsg, status::Status};
 
 pub struct MucoContext {
     pub to_relay_server_process: tokio::sync::mpsc::Sender<Vec<u8>>,
@@ -22,6 +22,16 @@ impl MucoContext {
     pub fn get_headset_mut(&mut self, unique_device_id: String) -> anyhow::Result<&mut HeadsetData> {
         let headset = self.status.headsets.get_mut(&unique_device_id).context("could not find headset with unique device id {unique_device_id}")?;
         Ok(headset)
+    }
+
+    pub fn get_environment_code_string(&self, name: &str) -> String {
+        match self.status.environment_codes.get(name) {
+            Some(code) => code.to_owned(),
+            None => {
+                println!("could not find environment code {name}, returning default");
+                DEFAULT_ENVIRONMENT_CODE.to_owned()
+            },
+        }
     }
 
     pub async fn update_clients(&self) {

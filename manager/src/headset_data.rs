@@ -1,6 +1,7 @@
 use crate::{color::Color, connection_status::ConnectionStatus, DEFAULT_SESSION_DURATION, player_data::Language};
 
-const DEFAULT_ENVIRONMENT_CODE: &str = "AntilatencyAltEnvironmentHorizontalGrid~AgASIrhTiT_cRqA-r45jvZqZmT4AAAAAAAAAAACamRk_AVgBDwMDCgMNAgIIGQEOEgIICAAFEAMMGgEMEAIOAAAEBgANFQEPEQMRBwMDAQIHHwIEEwMKGwEBAwECGQEIBQIEIAALBQALFQEJFgMFFgIBBwMHEgMIHQEQGwILBgIDHwINCwAHFAIDHAAGDgECCQMQAwEDDQACDwMCBQMBHgMKCwAOHwALGAIBGAMPFQMIDQMQHgIGAQEQDAIKAAIOGAANCQALIAMHIAAKAwMODgMOIAIQFwMLDQANAwAKEwAEAgILCgICFQEFBAINGgMPBQICEgIKHgEHFwEHCgIBFQMNHQARDgEPBwIFDAAKEQABGwMHBAAREwEFHQIJDwIGGgEEGQMBCgEGCAI";
+pub const DEFAULT_ENVIRONMENT_CODE: &str = "AntilatencyAltEnvironmentHorizontalGrid~AgASIrhTiT_cRqA-r45jvZqZmT4AAAAAAAAAAACamRk_AVgBDwMDCgMNAgIIGQEOEgIICAAFEAMMGgEMEAIOAAAEBgANFQEPEQMRBwMDAQIHHwIEEwMKGwEBAwECGQEIBQIEIAALBQALFQEJFgMFFgIBBwMHEgMIHQEQGwILBgIDHwINCwAHFAIDHAAGDgECCQMQAwEDDQACDwMCBQMBHgMKCwAOHwALGAIBGAMPFQMIDQMQHgIGAQEQDAIKAAIOGAANCQALIAMHIAAKAwMODgMOIAIQFwMLDQANAwAKEwAEAgILCgICFQEFBAINGgMPBQICEgIKHgEHFwEHCgIBFQMNHQARDgEPBwIFDAAKEQABGwMHBAAREwEFHQIJDwIGGgEEGQMBCgEGCAI";
+pub const DEFAULT_ENVIRONMENT_NAME: &str = "DefaultEnvironment";
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PersistentHeadsetData {
@@ -8,7 +9,7 @@ pub struct PersistentHeadsetData {
     pub name: String,
     pub color: Color,
     pub language: Language,
-    pub environment_code: String,
+    pub environment_name: String,
 }
 
 impl PersistentHeadsetData {
@@ -18,7 +19,7 @@ impl PersistentHeadsetData {
             name: "New Headset".to_string(),
             color: Color { r: 0.0, g: 0.0, b: 0.0, a: 0.0 },
             language: Language::EnGB,
-            environment_code: DEFAULT_ENVIRONMENT_CODE.to_string(),
+            environment_name: DEFAULT_ENVIRONMENT_NAME.to_string(),
         }
     }
 }

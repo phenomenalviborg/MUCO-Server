@@ -5,12 +5,14 @@ use crate::headset_data::{HeadsetData, PersistentHeadsetData, TempHeadsetData};
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Status {
     pub headsets: HashMap<String, HeadsetData>,
+    pub environment_codes: HashMap<String, String>,
 }
 
 impl Status {
     pub fn new() -> Status {
         Status {
             headsets: HashMap::new(),
+            environment_codes: HashMap::new(),
         }
     }
 

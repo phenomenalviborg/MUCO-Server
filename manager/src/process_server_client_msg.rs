@@ -1,6 +1,6 @@
 use msgs::server_client_msg::ServerClientMsg;
 
-use crate::{headset_data::HeadsetData, context::MucoContextRef, inter_client_msg::InterClientMsg, player_data_msg::PlayerDataMsg, player_data::PlayerAttribute, connection_status::ConnectionStatus};
+use crate::{connection_status::ConnectionStatus, context::MucoContextRef, headset_data::HeadsetData, inter_client_msg::InterClientMsg, player_data::PlayerAttribute, player_data_msg::PlayerDataMsg};
 
 pub async fn process_server_client_msg(msg: ServerClientMsg<'_>, context_ref: &MucoContextRef) {
     match msg {
@@ -39,14 +39,15 @@ pub async fn process_server_client_msg(msg: ServerClientMsg<'_>, context_ref: &M
                                     }
                                     let headset = context.status.headsets.get_mut(&device_id_string).unwrap();
                                     headset.temp.connection_status = ConnectionStatus::Connected (sender);
-                                    let headset_color = headset.persistent.color;
-                                    let headset_language = headset.persistent.language;
-                                    let headset_environment_code = headset.persistent.environment_code.clone();
+                                    let color = headset.persistent.color;
+                                    let language = headset.persistent.language;
+                                    let environment_name = headset.persistent.environment_name.clone();
+                                    let environment_code = context.get_environment_code_string(&environment_name);
                                     context.connection_id_to_player.insert(sender, device_id_string);
                                     context.status_generation += 1;
-                                    context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Color (headset_color)))).await;
-                                    context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Language (headset_language)))).await;
-                                    context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::EnvironmentCode (headset_environment_code)))).await;
+                                    context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Color (color)))).await;
+                                    context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Language (language)))).await;
+                                    context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::EnvironmentCode (environment_code.to_owned())))).await;
                                 }
                                 _ => {}
                             }
