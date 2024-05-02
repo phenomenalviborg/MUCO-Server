@@ -17,6 +17,7 @@ pub enum PlayerAttribute {
     DeviceId (u32),
     Color (Color),
     Trans,
+    Level,
     Hands,
     Language (Language),
     EnvironmentCode (String),
@@ -27,6 +28,7 @@ pub enum PlayerAttributeTag {
     DeviceId,
     _Color,
     _Trans,
+    _Level,
     _Hands,
     _Language,
     _EnvironmentCode,
@@ -53,7 +55,8 @@ impl PlayerAttribute {
                 PlayerAttribute::Color(color)
             }
             2 => PlayerAttribute::Trans,
-            3 => PlayerAttribute::Hands,
+            3 => PlayerAttribute::Level,
+            4 => PlayerAttribute::Hands,
             type_index => {
                 bail!("unsupported player data type: {type_index}");
             }
@@ -73,9 +76,10 @@ impl PlayerAttribute {
                 wtr.write_f32::<LittleEndian>(color.a).unwrap();
             }
             PlayerAttribute::Trans => todo!(),
+            PlayerAttribute::Level => todo!(),
             PlayerAttribute::Hands => todo!(),
             PlayerAttribute::Language (language) => {
-                wtr.write_u32::<LittleEndian>(4).unwrap();
+                wtr.write_u32::<LittleEndian>(5).unwrap();
                 let language_index = match language {
                     Language::EnGB => 0,
                     Language::DaDK => 1,
@@ -84,7 +88,7 @@ impl PlayerAttribute {
                 wtr.write_u32::<LittleEndian>(language_index).unwrap();
             }
             PlayerAttribute::EnvironmentCode(code) => {
-                wtr.write_u32::<LittleEndian>(5).unwrap();
+                wtr.write_u32::<LittleEndian>(6).unwrap();
                 wtr.write_u32::<LittleEndian>(code.len() as u32).unwrap();
                 wtr.write(code.as_bytes()).unwrap();
             }
