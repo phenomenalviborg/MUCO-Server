@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::headset_data::{HeadsetData, PersistentHeadsetData, TempHeadsetData};
+use crate::headset_data::{HeadsetData, PersistentHeadsetData, TempHeadsetData, DEFAULT_ENVIRONMENT_CODE, DEFAULT_ENVIRONMENT_NAME};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Status {
@@ -10,9 +10,11 @@ pub struct Status {
 
 impl Status {
     pub fn new() -> Status {
+        let mut environment_codes = HashMap::new();
+        environment_codes.insert(DEFAULT_ENVIRONMENT_NAME.to_owned(), DEFAULT_ENVIRONMENT_CODE.to_owned());
         Status {
             headsets: HashMap::new(),
-            environment_codes: HashMap::new(),
+            environment_codes,
         }
     }
 
