@@ -1,4 +1,4 @@
-use std::{sync::Arc, collections::HashMap, convert::Infallible};
+use std::{collections::HashMap, convert::Infallible, net::{IpAddr, Ipv4Addr, SocketAddr}, sync::Arc};
 
 use console_input::console_input_thread;
 use context::{MucoContextRef, MucoContext};
@@ -73,8 +73,11 @@ async fn main() {
         .or(ws_route)
         .with(warp::cors().allow_any_origin());
 
+    let port = 8000;
+    let addr = SocketAddr::new(IpAddr::from(Ipv4Addr::UNSPECIFIED), port);
+
     tokio::spawn(async move {
-        warp::serve(routes).run(([127, 0, 0, 1], 8000)).await;
+        warp::serve(routes).run(addr).await;
     });
 
     update_clients_periodically(context_ref.clone()).await;
