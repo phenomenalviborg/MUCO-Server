@@ -64,6 +64,7 @@ pub enum ClientMsg {
     RemoveEnvironment(String),
     RenameEnvironment(String, String),
     SetDevMode(String, bool),
+    SetIsVisible(String, bool),
 }
 
 pub enum ServerResponse {
@@ -225,6 +226,16 @@ pub async fn process_client_msg(client_msg: ClientMsg, context_ref: &MucoContext
             headset.temp.in_dev_mode = in_dev_mode;
             if let ConnectionStatus::Connected(session_id) = headset.temp.connection_status {
                 let msg = InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::DevMode(in_dev_mode)));
+                context.send_msg_to_player(session_id, msg).await;
+            }
+            UpdateClients
+        }
+        SetIsVisible(unique_device_id, is_visible) => {
+            let mut context = context_ref.write().await;
+            let headset = context.status.headsets.get_mut(&unique_device_id).context("could not find headset with id {unique_device_id}")?;
+            headset.temp.is_visible = is_visible;
+            if let ConnectionStatus::Connected(session_id) = headset.temp.connection_status {
+                let msg = InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::IsVisible(is_visible)));
                 context.send_msg_to_player(session_id, msg).await;
             }
             UpdateClients

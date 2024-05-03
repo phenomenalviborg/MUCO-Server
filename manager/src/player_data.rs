@@ -22,6 +22,7 @@ pub enum PlayerAttribute {
     Language (Language),
     EnvironmentCode (String),
     DevMode (bool),
+    IsVisible (bool),
 }
 
 #[derive(Debug)]
@@ -34,6 +35,7 @@ pub enum PlayerAttributeTag {
     _Language,
     _EnvironmentCode,
     _DevMode,
+    _IsVisible,
 }
 
 impl PlayerAttribute {
@@ -95,6 +97,11 @@ impl PlayerAttribute {
             PlayerAttribute::DevMode(is_on) => {
                 wtr.write_u32::<LittleEndian>(7).unwrap();
                 let buffer = if *is_on { &[1] } else { &[0] };
+                wtr.write_all(buffer).unwrap();
+            }
+            PlayerAttribute::IsVisible(is_visible) => {
+                wtr.write_u32::<LittleEndian>(8).unwrap();
+                let buffer = if *is_visible { &[1] } else { &[0] };
                 wtr.write_all(buffer).unwrap();
             }
         }
