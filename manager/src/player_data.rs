@@ -93,6 +93,7 @@ impl PlayerAttribute {
                 wtr.write_all(code.as_bytes()).unwrap();
             }
             PlayerAttribute::DevMode(is_on) => {
+                wtr.write_u32::<LittleEndian>(7).unwrap();
                 let buffer = if *is_on { &[1] } else { &[0] };
                 wtr.write_all(buffer).unwrap();
             }
