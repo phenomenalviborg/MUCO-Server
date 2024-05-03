@@ -35,6 +35,7 @@ pub struct TempHeadsetData {
     pub connection_status: ConnectionStatus,
     pub session_state: SessionState, 
     pub session_duration: i64, //in seconds
+    pub in_dev_mode: bool,
 }
 
 impl TempHeadsetData {
@@ -43,6 +44,7 @@ impl TempHeadsetData {
             connection_status: ConnectionStatus::Disconnected,
             session_state: SessionState::Paused(0),
             session_duration: DEFAULT_SESSION_DURATION,
+            in_dev_mode: false,
         }
     }
 }

@@ -52,6 +52,7 @@ impl PlayerDataMsg {
                     PlayerAttributeTag::_Hands => 4,
                     PlayerAttributeTag::_Language => 5,
                     PlayerAttributeTag::_EnvironmentCode => 6,
+                    PlayerAttributeTag::_DevMode => 7,
                 };
                 wtr.write_u32::<LittleEndian>(tag_index).unwrap();
             }

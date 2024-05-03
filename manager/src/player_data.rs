@@ -21,6 +21,7 @@ pub enum PlayerAttribute {
     Hands,
     Language (Language),
     EnvironmentCode (String),
+    DevMode (bool),
 }
 
 #[derive(Debug)]
@@ -32,14 +33,13 @@ pub enum PlayerAttributeTag {
     _Hands,
     _Language,
     _EnvironmentCode,
+    _DevMode,
 }
 
 impl PlayerAttribute {
     pub fn decode(input_buffer: &[u8], _sender: u32) -> anyhow::Result<PlayerAttribute> {
         let mut rdr = Cursor::new(&input_buffer);
         let msg_type_index = rdr.read_u32::<LittleEndian>().unwrap();
-
-        //let begin = 4;
 
         let msg = match msg_type_index {
             0 => {
@@ -90,7 +90,11 @@ impl PlayerAttribute {
             PlayerAttribute::EnvironmentCode(code) => {
                 wtr.write_u32::<LittleEndian>(6).unwrap();
                 wtr.write_u32::<LittleEndian>(code.len() as u32).unwrap();
-                wtr.write(code.as_bytes()).unwrap();
+                wtr.write_all(code.as_bytes()).unwrap();
+            }
+            PlayerAttribute::DevMode(is_on) => {
+                let buffer = if *is_on { &[1] } else { &[0] };
+                wtr.write_all(buffer).unwrap();
             }
         }
     }

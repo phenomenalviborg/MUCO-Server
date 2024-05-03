@@ -63,6 +63,7 @@ pub enum ClientMsg {
     SetEnvironmentCode(String, String),
     RemoveEnvironment(String),
     RenameEnvironment(String, String),
+    SetDevMode(String, bool),
 }
 
 pub enum ServerResponse {
@@ -215,6 +216,16 @@ pub async fn process_client_msg(client_msg: ClientMsg, context_ref: &MucoContext
                 if headset.persistent.environment_name == old_name {
                     headset.persistent.environment_name = new_name.clone();
                 }
+            }
+            UpdateClients
+        }
+        SetDevMode(unique_device_id, in_dev_mode) => {
+            let mut context = context_ref.write().await;
+            let headset = context.status.headsets.get_mut(&unique_device_id).context("could not find headset with id {unique_device_id}")?;
+            headset.temp.in_dev_mode = in_dev_mode;
+            if let ConnectionStatus::Connected(session_id) = headset.temp.connection_status {
+                let msg = InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::DevMode(in_dev_mode)));
+                context.send_msg_to_player(session_id, msg).await;
             }
             UpdateClients
         }
