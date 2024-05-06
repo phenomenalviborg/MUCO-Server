@@ -48,6 +48,19 @@ pub async fn process_server_client_msg(msg: ServerClientMsg<'_>, context_ref: &M
                                     context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Language (language)))).await;
                                     context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::EnvironmentCode (environment_code.to_owned())))).await;
                                 }
+                                PlayerAttribute::DevMode(in_dev_mode) => {
+                                    let mut context = context_ref.write().await;
+                                    let device_id = match context.connection_id_to_player.get(&sender) {
+                                        Some(id) => *id,
+                                        None => {
+                                            println!("could not find device id for sender: {sender}");
+                                            return;
+                                        }
+                                    };
+                                    let headset = context.status.headsets.get_mut(&device_id).unwrap();
+                                    headset.temp.in_dev_mode = in_dev_mode;
+                                    context.status_generation += 1;
+                                }
                                 _ => {}
                             }
                         }
