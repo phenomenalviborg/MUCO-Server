@@ -20,7 +20,7 @@ pub enum PlayerAttribute {
     Level,
     Hands,
     Language (Language),
-    EnvironmentCode (String),
+    EnvironmentCode (Box<str>),
     DevMode (bool),
     IsVisible (bool),
 }
@@ -73,7 +73,7 @@ impl PlayerAttribute {
                 let len = rdr.read_u32::<LittleEndian>().unwrap();
                 let mut buf = vec![0u8; len as usize];
                 rdr.read(&mut buf).unwrap();
-                let code = String::from_utf8(buf).unwrap();
+                let code = String::from_utf8(buf).unwrap().into();
                 PlayerAttribute::EnvironmentCode(code)
             }
             7 => {

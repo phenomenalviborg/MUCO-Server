@@ -5,13 +5,13 @@ use crate::headset_data::{HeadsetData, PersistentHeadsetData, TempHeadsetData, D
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Status {
     pub headsets: HashMap<String, HeadsetData>,
-    pub environment_codes: HashMap<String, String>,
+    pub environment_codes: HashMap<String, Box<str>>,
 }
 
 impl Status {
     pub fn new() -> Status {
         let mut environment_codes = HashMap::new();
-        environment_codes.insert(DEFAULT_ENVIRONMENT_NAME.to_owned(), DEFAULT_ENVIRONMENT_CODE.to_owned());
+        environment_codes.insert(DEFAULT_ENVIRONMENT_NAME.to_owned(), DEFAULT_ENVIRONMENT_CODE.into());
         Status {
             headsets: HashMap::new(),
             environment_codes,

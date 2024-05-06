@@ -60,7 +60,7 @@ pub enum ClientMsg {
     Pause(String),
     Unpause(String),
     SetEnvironment(String, String),
-    SetEnvironmentCode(String, String),
+    SetEnvironmentCode(String, Box<str>),
     RemoveEnvironment(String),
     RenameEnvironment(String, String),
     SetDevMode(String, bool),

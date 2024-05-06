@@ -24,12 +24,12 @@ impl MucoContext {
         Ok(headset)
     }
 
-    pub fn get_environment_code_string(&self, name: &str) -> String {
+    pub fn get_environment_code_string(&self, name: &str) -> Box<str> {
         match self.status.environment_codes.get(name) {
             Some(code) => code.to_owned(),
             None => {
                 println!("could not find environment code {name}, returning default");
-                DEFAULT_ENVIRONMENT_CODE.to_owned()
+                DEFAULT_ENVIRONMENT_CODE.into()
             },
         }
     }
