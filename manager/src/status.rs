@@ -2,16 +2,18 @@ use std::collections::HashMap;
 
 use crate::headset_data::{HeadsetData, PersistentHeadsetData, TempHeadsetData, DEFAULT_ENVIRONMENT_CODE, DEFAULT_ENVIRONMENT_NAME};
 
+pub type EnvCodeName = Box<str>;
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Status {
     pub headsets: HashMap<String, HeadsetData>,
-    pub environment_codes: HashMap<String, Box<str>>,
+    pub environment_codes: HashMap<EnvCodeName, Box<str>>,
 }
 
 impl Status {
     pub fn new() -> Status {
         let mut environment_codes = HashMap::new();
-        environment_codes.insert(DEFAULT_ENVIRONMENT_NAME.to_owned(), DEFAULT_ENVIRONMENT_CODE.into());
+        environment_codes.insert(DEFAULT_ENVIRONMENT_NAME.into(), DEFAULT_ENVIRONMENT_CODE.into());
         Status {
             headsets: HashMap::new(),
             environment_codes,

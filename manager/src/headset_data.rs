@@ -1,4 +1,4 @@
-use crate::{color::Color, connection_status::ConnectionStatus, DEFAULT_SESSION_DURATION, player_data::Language};
+use crate::{color::Color, connection_status::ConnectionStatus, player_data::Language, status::EnvCodeName, DEFAULT_SESSION_DURATION};
 
 pub const DEFAULT_ENVIRONMENT_CODE: &str = "AntilatencyAltEnvironmentHorizontalGrid~AgASIrhTiT_cRqA-r45jvZqZmT4AAAAAAAAAAACamRk_AVgBDwMDCgMNAgIIGQEOEgIICAAFEAMMGgEMEAIOAAAEBgANFQEPEQMRBwMDAQIHHwIEEwMKGwEBAwECGQEIBQIEIAALBQALFQEJFgMFFgIBBwMHEgMIHQEQGwILBgIDHwINCwAHFAIDHAAGDgECCQMQAwEDDQACDwMCBQMBHgMKCwAOHwALGAIBGAMPFQMIDQMQHgIGAQEQDAIKAAIOGAANCQALIAMHIAAKAwMODgMOIAIQFwMLDQANAwAKEwAEAgILCgICFQEFBAINGgMPBQICEgIKHgEHFwEHCgIBFQMNHQARDgEPBwIFDAAKEQABGwMHBAAREwEFHQIJDwIGGgEEGQMBCgEGCAI";
 pub const DEFAULT_ENVIRONMENT_NAME: &str = "DefaultEnvironment";
@@ -9,7 +9,7 @@ pub struct PersistentHeadsetData {
     pub name: String,
     pub color: Color,
     pub language: Language,
-    pub environment_name: String,
+    pub environment_name: EnvCodeName,
 }
 
 impl PersistentHeadsetData {
@@ -19,7 +19,7 @@ impl PersistentHeadsetData {
             name: "New Headset".to_string(),
             color: Color { r: 0.0, g: 0.0, b: 0.0, a: 0.0 },
             language: Language::EnGB,
-            environment_name: DEFAULT_ENVIRONMENT_NAME.to_string(),
+            environment_name: DEFAULT_ENVIRONMENT_NAME.into(),
         }
     }
 }

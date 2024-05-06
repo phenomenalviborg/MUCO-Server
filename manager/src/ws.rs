@@ -1,6 +1,6 @@
 use std::time::{UNIX_EPOCH, SystemTime};
 
-use crate::{context::MucoContextRef, color::Color, connection_status::ConnectionStatus, DEFAULT_SESSION_DURATION, headset_data::SessionState, inter_client_msg::InterClientMsg, player_data_msg::PlayerDataMsg, player_data::{PlayerAttribute, Language}};
+use crate::{color::Color, connection_status::ConnectionStatus, context::MucoContextRef, headset_data::SessionState, inter_client_msg::InterClientMsg, player_data::{Language, PlayerAttribute}, player_data_msg::PlayerDataMsg, status::EnvCodeName, DEFAULT_SESSION_DURATION};
 use anyhow::Context;
 use futures::{FutureExt, StreamExt};
 use msgs::client_server_msg::ClientServerMsg;
@@ -59,10 +59,10 @@ pub enum ClientMsg {
     ExtendSession(String, i64),
     Pause(String),
     Unpause(String),
-    SetEnvironment(String, String),
-    SetEnvironmentCode(String, Box<str>),
-    RemoveEnvironment(String),
-    RenameEnvironment(String, String),
+    SetEnvironment(String, EnvCodeName),
+    SetEnvironmentCode(EnvCodeName, Box<str>),
+    RemoveEnvironment(EnvCodeName),
+    RenameEnvironment(EnvCodeName, EnvCodeName),
     SetDevMode(String, bool),
     SetIsVisible(String, bool),
 }
