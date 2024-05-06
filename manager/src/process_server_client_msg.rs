@@ -31,19 +31,18 @@ pub async fn process_server_client_msg(msg: ServerClientMsg<'_>, context_ref: &M
                         PlayerDataMsg::Notify (player_data) => {
                             match player_data {
                                 PlayerAttribute::DeviceId(device_id) => {
-                                    let device_id_string = device_id.to_string();
                                     let mut context = context_ref.write().await;
-                                    if !context.status.headsets.contains_key(&device_id_string) {
+                                    if !context.status.headsets.contains_key(&device_id) {
                                         let new_player_data = HeadsetData::new(device_id);
-                                        context.status.headsets.insert(device_id_string.clone(), new_player_data);
+                                        context.status.headsets.insert(device_id, new_player_data);
                                     }
-                                    let headset = context.status.headsets.get_mut(&device_id_string).unwrap();
+                                    let headset = context.status.headsets.get_mut(&device_id).unwrap();
                                     headset.temp.connection_status = ConnectionStatus::Connected (sender);
                                     let color = headset.persistent.color;
                                     let language = headset.persistent.language;
                                     let environment_name = headset.persistent.environment_name.clone();
                                     let environment_code = context.get_environment_code_string(&environment_name);
-                                    context.connection_id_to_player.insert(sender, device_id_string);
+                                    context.connection_id_to_player.insert(sender, device_id);
                                     context.status_generation += 1;
                                     context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Color (color)))).await;
                                     context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Language (language)))).await;

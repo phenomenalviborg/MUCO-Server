@@ -3,10 +3,11 @@ use std::collections::HashMap;
 use crate::headset_data::{HeadsetData, PersistentHeadsetData, TempHeadsetData, DEFAULT_ENVIRONMENT_CODE, DEFAULT_ENVIRONMENT_NAME};
 
 pub type EnvCodeName = Box<str>;
+pub type DeviceId = u32;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Status {
-    pub headsets: HashMap<String, HeadsetData>,
+    pub headsets: HashMap<DeviceId, HeadsetData>,
     pub environment_codes: HashMap<EnvCodeName, Box<str>>,
 }
 
@@ -32,7 +33,7 @@ impl Status {
         let persistent_data = serde_json::from_str::<Vec<PersistentHeadsetData>>(&json)?;
         let mut status = Status::new();
         for persistent in persistent_data {
-            let k = persistent.unique_device_id.to_string();
+            let k = persistent.unique_device_id;
             let temp = TempHeadsetData::new();
             let v = HeadsetData { persistent, temp };
             status.headsets.insert(k, v);

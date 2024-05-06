@@ -5,12 +5,12 @@ use msgs::client_server_msg::{ClientServerMsg, Address};
 use tokio::sync::{RwLock, mpsc};
 use warp::filters::ws::Message;
 
-use crate::{connection_status::ConnectionStatus, headset_data::{HeadsetData, DEFAULT_ENVIRONMENT_CODE}, inter_client_msg::InterClientMsg, player_data::PlayerAttributeTag, player_data_msg::PlayerDataMsg, status::Status};
+use crate::{connection_status::ConnectionStatus, headset_data::{HeadsetData, DEFAULT_ENVIRONMENT_CODE}, inter_client_msg::InterClientMsg, player_data::PlayerAttributeTag, player_data_msg::PlayerDataMsg, status::{DeviceId, Status}};
 
 pub struct MucoContext {
     pub to_relay_server_process: tokio::sync::mpsc::Sender<Vec<u8>>,
     pub to_frontend_senders: HashMap<String, mpsc::UnboundedSender<std::result::Result<Message, warp::Error>>>,
-    pub connection_id_to_player: HashMap<u32, String>,
+    pub connection_id_to_player: HashMap<u32, DeviceId>,
     pub status: Status,
     pub status_generation: usize,
     pub unknown_connections: Vec<u32>,
@@ -19,7 +19,7 @@ pub struct MucoContext {
 pub type MucoContextRef = Arc<RwLock<MucoContext>>;
 
 impl MucoContext {
-    pub fn get_headset_mut(&mut self, unique_device_id: String) -> anyhow::Result<&mut HeadsetData> {
+    pub fn get_headset_mut(&mut self, unique_device_id: DeviceId) -> anyhow::Result<&mut HeadsetData> {
         let headset = self.status.headsets.get_mut(&unique_device_id).context("could not find headset with unique device id {unique_device_id}")?;
         Ok(headset)
     }
@@ -59,9 +59,9 @@ impl MucoContext {
         self.to_relay_server_process.send(client_server_msg_bytes).await.unwrap();
     }
     
-    pub fn get_or_request_unique_device_id(&mut self, connection_id: u32) -> Option<&str> {
+    pub fn get_or_request_unique_device_id(&mut self, connection_id: u32) -> Option<u32> {
         if let Some(unique_device_id) = self.connection_id_to_player.get(&connection_id) {
-            return Some(unique_device_id)
+            return Some(*unique_device_id)
         }
         if !self.unknown_connections.contains(&connection_id) {
             self.unknown_connections.push(connection_id)

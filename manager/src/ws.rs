@@ -1,6 +1,6 @@
 use std::time::{UNIX_EPOCH, SystemTime};
 
-use crate::{color::Color, connection_status::ConnectionStatus, context::MucoContextRef, headset_data::SessionState, inter_client_msg::InterClientMsg, player_data::{Language, PlayerAttribute}, player_data_msg::PlayerDataMsg, status::EnvCodeName, DEFAULT_SESSION_DURATION};
+use crate::{color::Color, connection_status::ConnectionStatus, context::MucoContextRef, headset_data::SessionState, inter_client_msg::InterClientMsg, player_data::{Language, PlayerAttribute}, player_data_msg::PlayerDataMsg, status::{DeviceId, EnvCodeName}, DEFAULT_SESSION_DURATION};
 use anyhow::Context;
 use futures::{FutureExt, StreamExt};
 use msgs::client_server_msg::ClientServerMsg;
@@ -50,21 +50,21 @@ pub async fn frontend_connection_process(ws: WebSocket, context_ref: MucoContext
 pub enum ClientMsg {
     Ping,
     Echo(String),
-    Forget(String),
-    Kick(String),
-    SetColor(String, Color),
-    SetName(String, String),
-    SetLanguage(String, Language),
-    StartSession(String),
-    ExtendSession(String, i64),
-    Pause(String),
-    Unpause(String),
-    SetEnvironment(String, EnvCodeName),
+    Forget(DeviceId),
+    Kick(DeviceId),
+    SetColor(DeviceId, Color),
+    SetName(DeviceId, String),
+    SetLanguage(DeviceId, Language),
+    StartSession(DeviceId),
+    ExtendSession(DeviceId, i64),
+    Pause(DeviceId),
+    Unpause(DeviceId),
+    SetEnvironment(DeviceId, EnvCodeName),
     SetEnvironmentCode(EnvCodeName, Box<str>),
     RemoveEnvironment(EnvCodeName),
     RenameEnvironment(EnvCodeName, EnvCodeName),
-    SetDevMode(String, bool),
-    SetIsVisible(String, bool),
+    SetDevMode(DeviceId, bool),
+    SetIsVisible(DeviceId, bool),
 }
 
 pub enum ServerResponse {
