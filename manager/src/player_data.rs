@@ -1,4 +1,4 @@
-use std::io::{Cursor, Write};
+use std::{io::{Cursor, Read, Write}, vec};
 
 use anyhow::bail;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -59,6 +59,47 @@ impl PlayerAttribute {
             2 => PlayerAttribute::Trans,
             3 => PlayerAttribute::Level,
             4 => PlayerAttribute::Hands,
+            5 => {
+                let language_index = rdr.read_u32::<LittleEndian>().unwrap();
+                let language = match language_index {
+                    0 => Language::EnGB,
+                    1 => Language::DaDK,
+                    2 => Language::DeDE,
+                    _ => bail!("unsupported language index: {language_index}")
+                };
+                PlayerAttribute::Language(language)
+            }
+            6 => {
+                let len = rdr.read_u32::<LittleEndian>().unwrap();
+                let mut buf = vec![0u8; len as usize];
+                rdr.read(&mut buf).unwrap();
+                let code = String::from_utf8(buf).unwrap();
+                PlayerAttribute::EnvironmentCode(code)
+            }
+            7 => {
+                let x = rdr.read_u8().unwrap();
+                let in_dev_mode = match x {
+                    0 => false,
+                    _ => true,
+                };
+                PlayerAttribute::DevMode(in_dev_mode)
+            }
+            8 => {
+                let x = rdr.read_u8().unwrap();
+                let in_dev_mode = match x {
+                    0 => false,
+                    _ => true,
+                };
+                PlayerAttribute::DevMode(in_dev_mode)
+            }
+            9 => {
+                let x = rdr.read_u8().unwrap();
+                let is_visible = match x {
+                    0 => false,
+                    _ => true,
+                };
+                PlayerAttribute::IsVisible(is_visible)
+            }
             type_index => {
                 bail!("unsupported player data type: {type_index}");
             }
