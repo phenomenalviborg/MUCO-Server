@@ -23,7 +23,7 @@ impl ClientDb {
 
         let mut log_file = None;
         if let Some(path) = log_folder_path {
-            let file_path = format!("{path}/{session_id}");
+            let file_path = format!("{path}/{session_id}.muco_log");
             log_file = Some(File::create_new(file_path).unwrap());
         }
         spawn_client_process(socket, tx, session_id, addr, server_start_time, log_file);
