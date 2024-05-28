@@ -9,16 +9,12 @@ use status::Status;
 use tokio::sync::RwLock;
 use warp::{reject::Rejection, Filter};
 
-mod color;
 mod connection_status;
 mod console_input;
 mod context;
 mod discover_server;
 mod handler;
 mod headset_data;
-mod inter_client_msg;
-mod player_data_msg;
-mod player_data;
 mod process_server_client_msg;
 mod relay_server_connection_process;
 mod status;

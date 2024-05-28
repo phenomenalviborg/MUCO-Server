@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 byteorder = { workspace = true }
 anyhow = { workspace = true }
+serde = { workspace = true, features = ["derive"] }

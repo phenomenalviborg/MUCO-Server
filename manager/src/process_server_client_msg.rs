@@ -1,6 +1,6 @@
-use msgs::server_client_msg::ServerClientMsg;
+use msgs::{inter_client_msg::InterClientMsg, player_data::PlayerAttribute, player_data_msg::PlayerDataMsg, server_client_msg::ServerClientMsg};
 
-use crate::{connection_status::ConnectionStatus, context::MucoContextRef, headset_data::HeadsetData, inter_client_msg::InterClientMsg, player_data::PlayerAttribute, player_data_msg::PlayerDataMsg};
+use crate::{connection_status::ConnectionStatus, context::MucoContextRef, headset_data::HeadsetData};
 
 pub async fn process_server_client_msg(msg: ServerClientMsg<'_>, context_ref: &MucoContextRef) {
     match msg {
