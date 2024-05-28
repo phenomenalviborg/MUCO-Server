@@ -7,3 +7,5 @@ edition = "2021"
 byteorder = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["macros", "sync", "rt-multi-thread"] }
+mdns-sd = { workspace = true }

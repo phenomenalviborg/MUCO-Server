@@ -2,9 +2,8 @@ use std::{collections::HashMap, convert::Infallible, net::{IpAddr, Ipv4Addr, Soc
 
 use console_input::console_input_thread;
 use context::{MucoContextRef, MucoContext};
-use msgs::{client_server_msg::ClientServerMsg, client_type::ClientType, server_client_msg::ServerClientMsg};
+use msgs::{client_server_msg::ClientServerMsg, client_type::ClientType, relay_server_connection_process::spawn_relay_server_connection_process, server_client_msg::ServerClientMsg};
 use process_server_client_msg::process_server_client_msg;
-use relay_server_connection_process::spawn_relay_server_connection_process;
 use status::Status;
 use tokio::sync::RwLock;
 use warp::{reject::Rejection, Filter};
@@ -12,11 +11,9 @@ use warp::{reject::Rejection, Filter};
 mod connection_status;
 mod console_input;
 mod context;
-mod discover_server;
 mod handler;
 mod headset_data;
 mod process_server_client_msg;
-mod relay_server_connection_process;
 mod status;
 mod ws;
 

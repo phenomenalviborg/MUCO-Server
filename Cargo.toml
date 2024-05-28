@@ -2,7 +2,7 @@
 
 resolver = "2"
 
-members = [ "discover_server",
+members = [ "client_emulator", "discover_server",
     "manager",
     "msgs",
     "server",
