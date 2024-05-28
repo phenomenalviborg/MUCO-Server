@@ -97,6 +97,8 @@ name = "client_emulator"
 version = "0.1.0"
 dependencies = [
  "msgs",
+ "tokio",
+ "warp",
 ]
 
 [[package]]
