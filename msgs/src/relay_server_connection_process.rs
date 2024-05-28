@@ -2,7 +2,7 @@ use tokio::{net::TcpStream, io::{AsyncReadExt, AsyncWriteExt}};
 
 use crate::{dequeue::dequeue_msg, discover_server::find_local_server_ip};
 
-pub fn spawn_relay_server_connection_process(server_to_main: tokio::sync::mpsc::Sender<Vec<u8>>) -> tokio::sync::mpsc::Sender<Vec<u8>> {
+pub fn spawn_relay_server_connection_process(server_to_main: tokio::sync::mpsc::Sender<Vec<u8>>, reconnect: bool) -> tokio::sync::mpsc::Sender<Vec<u8>> {
     let (main_to_server, mut server_from_main) = tokio::sync::mpsc::channel::<Vec<u8>>(100);
     tokio::spawn(async move {
         loop {
@@ -32,7 +32,13 @@ pub fn spawn_relay_server_connection_process(server_to_main: tokio::sync::mpsc::
                         
                         while let Some((begin, end)) = dequeue_msg(&mut input_buffer) {
                             let bytes = input_buffer[begin..end].to_vec();
-                            server_to_main.send(bytes).await.unwrap();
+                            match server_to_main.send(bytes).await {
+                                Ok(_) => {}
+                                Err(_) => {
+                                    println!("main has gone away, closing");
+                                    return;
+                                }
+                            }
                             input_buffer.drain(..end);
                         }
                     }
@@ -54,6 +60,9 @@ pub fn spawn_relay_server_connection_process(server_to_main: tokio::sync::mpsc::
                         }
                     }
                 }
+            }
+            if !reconnect {
+                return
             }
         }
     });

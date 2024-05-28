@@ -50,7 +50,7 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
         }
         
         let mut rx = tx.subscribe();
-        loop {
+        'outer: loop {
             tokio::select! {
                 biased;
                 result = rx.recv() => {
@@ -104,6 +104,9 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
                             file.write_u32::<LittleEndian>(since_server_start).unwrap();
                             file.write_all(&input_buffer[..end]).unwrap();
                         }
+
+                        // dbg!(&input_buffer[begin..end]);
+
                         let decode_result = ClientServerMsg::decode(&input_buffer[begin..end], session_id);
 
                         let msg = match decode_result {
@@ -114,8 +117,10 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
                             }
                         };
 
+                        // dbg!(&msg);
+
                         if let Some(response) = match msg {
-                            ClientServerMsg::Disconnect => break,
+                            ClientServerMsg::Disconnect => break 'outer,
                             ClientServerMsg::BinaryMessageTo(address, content) => {
                                 let msg = ServerClientMsg::InterClient(session_id, content);
                                 let mut output_buffer: Vec<u8> = Vec::new();

@@ -2,6 +2,7 @@ use anyhow::{bail, Ok};
 
 pub enum ConsoleCmd {
     Display (String),
+    Play (String),
 }
 
 impl ConsoleCmd {
@@ -14,6 +15,9 @@ impl ConsoleCmd {
         match message_type {
             "display" => {
                 Ok(ConsoleCmd::Display(rem.to_owned()))
+            }
+            "play" => {
+                Ok(ConsoleCmd::Play(rem.to_owned()))
             }
             _ => bail!("cmd not recognized"),
         }
