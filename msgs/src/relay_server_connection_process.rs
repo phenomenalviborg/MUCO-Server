@@ -16,6 +16,24 @@ pub fn spawn_relay_server_connection_process(server_to_main: tokio::sync::mpsc::
 
             'connected: loop {
                 tokio::select! {
+                    biased;
+                    result = server_from_main.recv() => {
+                        let msg = match result {
+                            Some(msg) => msg,
+                            None => {
+                                println!("server disconnected");
+                            break;
+                            }
+                        };
+
+                        match stream.write_all(&msg).await {
+                            Ok(_) => {},
+                            Err(err) => {
+                                println!("error while writing to stream: {err}, restarting connection proccess");
+                                break 'connected;
+                            },
+                        }
+                    }
                     result = stream.read(&mut static_buffer) => {
                         let len = match result {
                             Ok(len) => len,
@@ -40,23 +58,6 @@ pub fn spawn_relay_server_connection_process(server_to_main: tokio::sync::mpsc::
                                 }
                             }
                             input_buffer.drain(..end);
-                        }
-                    }
-                    result = server_from_main.recv() => {
-                        let msg = match result {
-                            Some(msg) => msg,
-                            None => {
-                                println!("server disconnected");
-                            break;
-                            }
-                        };
-
-                        match stream.write_all(&msg).await {
-                            Ok(_) => {},
-                            Err(err) => {
-                                println!("error while writing to stream: {err}, restarting connection proccess");
-                                break 'connected;
-                            },
                         }
                     }
                 }

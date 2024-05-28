@@ -33,7 +33,7 @@ async fn main() {
     };
 
     let (server_to_main, mut main_from_server) = tokio::sync::mpsc::channel(100);
-    let to_relay_server_process = spawn_relay_server_connection_process(server_to_main);
+    let to_relay_server_process = spawn_relay_server_connection_process(server_to_main, true);
 
     {
         let msg = ClientServerMsg::SetClientType (ClientType::Manager);

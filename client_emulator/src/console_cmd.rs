@@ -3,6 +3,7 @@ use anyhow::{bail, Ok};
 pub enum ConsoleCmd {
     Display (String),
     Play (String),
+    Loop (String),
 }
 
 impl ConsoleCmd {
@@ -18,6 +19,9 @@ impl ConsoleCmd {
             }
             "play" => {
                 Ok(ConsoleCmd::Play(rem.to_owned()))
+            }
+            "loop" => {
+                Ok(ConsoleCmd::Loop(rem.to_owned()))
             }
             _ => bail!("cmd not recognized"),
         }

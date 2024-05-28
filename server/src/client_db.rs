@@ -105,8 +105,6 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
                             file.write_all(&input_buffer[..end]).unwrap();
                         }
 
-                        // dbg!(&input_buffer[begin..end]);
-
                         let decode_result = ClientServerMsg::decode(&input_buffer[begin..end], session_id);
 
                         let msg = match decode_result {
@@ -116,8 +114,6 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
                                 break;
                             }
                         };
-
-                        // dbg!(&msg);
 
                         if let Some(response) = match msg {
                             ClientServerMsg::Disconnect => break 'outer,

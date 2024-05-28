@@ -102,7 +102,6 @@ impl<'a> ClientServerMsg<'a> {
                         wtr.write_all(bytes).unwrap();
                     }
                 }
-                
             }
             ClientServerMsg::SetClientType(client_type) => {
                 wtr.write_u32::<LittleEndian>(8).unwrap();
