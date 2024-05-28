@@ -1,6 +1,7 @@
-use std::net::SocketAddr;
+use std::{fs::File, io::Write, net::SocketAddr, time::SystemTime};
 
-use msgs::{client_server_msg::{ClientServerMsg, Address}, server_client_msg::ServerClientMsg, client_type::ClientType};
+use byteorder::{LittleEndian, WriteBytesExt};
+use msgs::{client_server_msg::{Address, ClientServerMsg}, client_type::ClientType, dequeue::dequeue_msg, server_client_msg::ServerClientMsg};
 use tokio::{net::TcpStream, io::{AsyncReadExt, AsyncWriteExt}, sync::broadcast};
 
 use crate::broadcast_msg::BroadcastMsg;
@@ -16,15 +17,21 @@ impl ClientDb {
         }
     }
 
-    pub async fn new_client(&mut self, socket: TcpStream, addr: SocketAddr, tx: broadcast::Sender<BroadcastMsg>) {
+    pub async fn new_client(&mut self, socket: TcpStream, addr: SocketAddr, tx: broadcast::Sender<BroadcastMsg>, log_folder_path: Option<&str>, server_start_time: SystemTime) {
         let session_id = self.session_id_counter;
-        spawn_client_process(socket, tx, session_id, addr);
         self.session_id_counter += 1;
+
+        let mut log_file = None;
+        if let Some(path) = log_folder_path {
+            let file_path = format!("{path}/{session_id}");
+            log_file = Some(File::create_new(file_path).unwrap());
+        }
+        spawn_client_process(socket, tx, session_id, addr, server_start_time, log_file);
         println!("accepted client: {session_id} {addr}");
     }
 }
 
-pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<BroadcastMsg>, session_id: u32, addr: SocketAddr) {
+pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<BroadcastMsg>, session_id: u32, addr: SocketAddr, server_start_time: SystemTime, mut log_file: Option<File>) {
     tokio::spawn(async move {
         let mut static_buffer = [0; 1024];
         let mut input_buffer = Vec::new();
@@ -88,9 +95,18 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
                         break;
                     }
                     input_buffer.extend(&static_buffer[..len]);
-                    
-                    while let Some((cursor, msg)) = ClientServerMsg::dequeue_and_decode(&mut input_buffer, session_id) {
-                        let msg = match msg {
+
+                    while let Some((begin, end)) = dequeue_msg(&input_buffer) {
+                        if let Some(file) = &mut log_file {
+                            let since_server_start = server_start_time
+                                .duration_since(server_start_time)
+                                .expect("Time went backwards").as_millis() as u32;
+                            file.write_u32::<LittleEndian>(since_server_start).unwrap();
+                            file.write_all(&input_buffer[..end]).unwrap();
+                        }
+                        let decode_result = ClientServerMsg::decode(&input_buffer[begin..end], session_id);
+
+                        let msg = match decode_result {
                             Ok(msg) => msg,
                             Err(e) => {
                                 println!("error while decode msg: {e}");
@@ -126,7 +142,7 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
                             }
                         }
 
-                        input_buffer.drain(..cursor);
+                        input_buffer.drain(..end);
                     }
                 }
             }
