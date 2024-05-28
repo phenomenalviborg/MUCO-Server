@@ -98,7 +98,7 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
 
                     while let Some((begin, end)) = dequeue_msg(&input_buffer) {
                         if let Some(file) = &mut log_file {
-                            let since_server_start = server_start_time
+                            let since_server_start = std::time::SystemTime::now()
                                 .duration_since(server_start_time)
                                 .expect("Time went backwards").as_millis() as u32;
                             file.write_u32::<LittleEndian>(since_server_start).unwrap();

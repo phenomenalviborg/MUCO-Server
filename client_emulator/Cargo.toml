@@ -12,9 +12,9 @@ warp = { workspace = true }
 #futures = { workspace = true }
 #uuid = { workspace = true, features = ["serde", "v4"] }
 
-#pollster = { workspace = true }
-#anyhow = { workspace = true }
+pollster = { workspace = true }
+anyhow = { workspace = true }
 
-#byteorder = { workspace = true }
+byteorder = { workspace = true }
 
 msgs = { path = "../msgs" }
