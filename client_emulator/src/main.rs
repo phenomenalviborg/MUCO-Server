@@ -75,13 +75,13 @@ fn display(log_bytes: &[u8]) {
     let total_bytes = log_bytes.len() - line_nr * 4;
     let seconds = duration as f32 / 1000.0;
     let bytes_per_second = total_bytes as f32 / seconds;
-    let mb_per_second = bytes_per_second / 1024.0;
+    let kb_per_second = bytes_per_second / 1024.0;
     let msgs_per_second = line_nr as f32 / seconds;
 
     println!("duratin: {seconds}");
     println!("msg count: {line_nr}");
     println!("total bytes: {total_bytes}");
-    println!("mb per second: {mb_per_second}");
+    println!("kb per second: {kb_per_second}");
     println!("msgs per second: {msgs_per_second}");
 }
 
