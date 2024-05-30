@@ -43,9 +43,18 @@ fn display(log_bytes: &[u8]) {
     let mut line_nr = 0;
     let mut start_time = 0;
     let mut end_time = 0;
+    let mut prev_timestamp = None;
+    let mut time_stamp_buckets = Vec::new();
     while rdr.len() > 0 {
         let do_print = line_nr < lines_to_print;
         let timestamp = rdr.read_u32::<LittleEndian>().unwrap();
+        if let Some(prev_timestamp) = prev_timestamp {
+            let duration = timestamp - prev_timestamp;
+            while time_stamp_buckets.len() <= duration as usize {
+                time_stamp_buckets.push(0);
+            }
+            time_stamp_buckets[duration as usize] += 1;
+        }
         if start_time == 0 {
             start_time = timestamp;
         }
@@ -69,6 +78,7 @@ fn display(log_bytes: &[u8]) {
         }
         rdr = &rdr[end..];
         line_nr += 1;
+        prev_timestamp = Some(timestamp);
     }
 
     let duration = end_time - start_time;
@@ -78,11 +88,24 @@ fn display(log_bytes: &[u8]) {
     let kb_per_second = bytes_per_second / 1024.0;
     let msgs_per_second = line_nr as f32 / seconds;
 
-    println!("duratin: {seconds}");
+    println!("duration: {seconds}");
     println!("msg count: {line_nr}");
     println!("total bytes: {total_bytes}");
     println!("kb per second: {kb_per_second}");
     println!("msgs per second: {msgs_per_second}");
+    println!();
+
+    // let duration_count = line_nr - 1;
+    for (i, x) in time_stamp_buckets.iter().copied().enumerate() {
+        // let frac_count = x as f32 / duration_count as f32;
+        // let perc_count = frac_count * 100.0;
+        let frac_time = (i as f32 * x as f32) / duration as f32;
+        let perc_time = frac_time * 100.0;
+        let fps = 1000.0 / i as f32;
+        if perc_time > 1.0 {
+            println!("{i:4}ms x {x:3} {perc_time:4.1}% {fps:5.1}fps");
+        }
+    }
 }
 
 fn get_first_timestamp(log_bytes: &[u8]) -> u32 {
