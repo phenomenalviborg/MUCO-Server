@@ -1,3 +1,4 @@
 /target
 *.vscode
 *.muco_log
+server_data.txt
