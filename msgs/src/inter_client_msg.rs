@@ -10,6 +10,8 @@ pub enum InterClientMsg {
     _Interaction,
     PlayerData (PlayerDataMsg),
     _Ping,
+    _AllPlayerData,
+    _Diff,
 }
 
 impl InterClientMsg {
@@ -20,10 +22,14 @@ impl InterClientMsg {
         let begin = 4;
 
         let msg = match msg_type_index {
+            0 => InterClientMsg::_Interaction,
             1 => {
                 let player_data_msg = PlayerDataMsg::decode(&input_buffer[begin..], sender)?;
                 InterClientMsg::PlayerData(player_data_msg)
             }
+            2 => InterClientMsg::_Ping,
+            3 => InterClientMsg::_AllPlayerData,
+            4 => InterClientMsg::_Diff,
             type_index => {
                 bail!("unsupported inter client msg type: {type_index}");
             }
@@ -44,6 +50,10 @@ impl InterClientMsg {
             InterClientMsg::_Ping => {
                 todo!()
             }
+            InterClientMsg::_AllPlayerData => {
+                todo!();
+            }
+            InterClientMsg::_Diff => todo!(),
         }
     }
 }

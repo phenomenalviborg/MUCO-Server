@@ -39,23 +39,50 @@ async fn main() {
 
 fn display(log_bytes: &[u8]) {
     let mut rdr = &log_bytes[..];
+    let lines_to_print = 20;
+    let mut line_nr = 0;
+    let mut start_time = 0;
+    let mut end_time = 0;
     while rdr.len() > 0 {
+        let do_print = line_nr < lines_to_print;
         let timestamp = rdr.read_u32::<LittleEndian>().unwrap();
-        print!("{timestamp} ");
+        if start_time == 0 {
+            start_time = timestamp;
+        }
+        end_time = timestamp;
         let (begin, end) = dequeue_msg(rdr).unwrap();
         let decode_result = ClientServerMsg::decode(&rdr[begin..end], 0);
         let msg = decode_result.unwrap();
-        match msg {
-            ClientServerMsg::BinaryMessageTo(_, msg_bytes) => {
-                let decode_result = InterClientMsg::decode(msg_bytes, 0);
-                let msg = decode_result.unwrap();
-                print!("{msg:?}");
+        if do_print {
+            print!("{timestamp} ");
+            let byte_count = end - begin;
+            print!("{byte_count:4} ");
+            match msg {
+                ClientServerMsg::BinaryMessageTo(_, msg_bytes) => {
+                    let decode_result = InterClientMsg::decode(msg_bytes, 0);
+                    let msg = decode_result.unwrap();
+                    print!("{msg:?}");
+                }
+                _ => print!("{msg:?}")
             }
-            _ => print!("{msg:?}")
+            println!();
         }
-        println!();
         rdr = &rdr[end..];
+        line_nr += 1;
     }
+
+    let duration = end_time - start_time;
+    let total_bytes = log_bytes.len() - line_nr * 4;
+    let seconds = duration as f32 / 1000.0;
+    let bytes_per_second = total_bytes as f32 / seconds;
+    let kb_per_second = bytes_per_second / 1024.0;
+    let msgs_per_second = line_nr as f32 / seconds;
+
+    println!("duratin: {seconds}");
+    println!("msg count: {line_nr}");
+    println!("total bytes: {total_bytes}");
+    println!("kb per second: {kb_per_second}");
+    println!("msgs per second: {msgs_per_second}");
 }
 
 fn get_first_timestamp(log_bytes: &[u8]) -> u32 {

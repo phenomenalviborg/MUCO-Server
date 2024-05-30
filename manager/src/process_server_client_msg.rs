@@ -68,6 +68,8 @@ pub async fn process_server_client_msg(msg: ServerClientMsg<'_>, context_ref: &M
                     }
                 }
                 InterClientMsg::_Ping => {}
+                InterClientMsg::_AllPlayerData => {}
+                InterClientMsg::_Diff => {}
             }
 
             context_ref.write().await.get_or_request_unique_device_id(sender);
