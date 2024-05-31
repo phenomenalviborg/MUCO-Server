@@ -12,6 +12,15 @@ pub enum Language {
     DeDE,
 }
 
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum BatteryStatus {
+    Unknown,
+    Charging,
+    Discharging,
+    NotCharging,
+    Full,
+}
+
 #[derive(Debug)]
 pub enum PlayerAttribute {
     DeviceId (u32),
@@ -23,6 +32,7 @@ pub enum PlayerAttribute {
     EnvironmentCode (Box<str>),
     DevMode (bool),
     IsVisible (bool),
+    Battery (BatteryStatus, f32),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -36,6 +46,7 @@ pub enum PlayerAttributeTag {
     EnvironmentCode,
     DevMode,
     IsVisible,
+    Battery,
 }
 
 impl PlayerAttributeTag {
@@ -49,6 +60,7 @@ impl PlayerAttributeTag {
         PlayerAttributeTag::EnvironmentCode,
         PlayerAttributeTag::DevMode,
         PlayerAttributeTag::IsVisible,
+        PlayerAttributeTag::Battery,
     ];
 
     pub fn decode(rdr: &mut &[u8]) -> anyhow::Result<Self> {
@@ -78,6 +90,7 @@ impl PlayerAttributeTag {
             PlayerAttributeTag::EnvironmentCode => 6,
             PlayerAttributeTag::DevMode => 7,
             PlayerAttributeTag::IsVisible => 8,
+            PlayerAttributeTag::Battery => 9,
         };
         wtr.write_u32::<LittleEndian>(tag_index).unwrap();
     }
@@ -161,6 +174,20 @@ impl PlayerAttribute {
                 };
                 PlayerAttribute::IsVisible(is_visible)
             }
+            PlayerAttributeTag::Battery => {
+                let status_byte = rdr.read_u8()?;
+                let status = match status_byte {
+                    0 => BatteryStatus::Unknown,
+                    1 => BatteryStatus::Charging,
+                    2 => BatteryStatus::Discharging,
+                    3 => BatteryStatus::NotCharging,
+                    4 => BatteryStatus::Full,
+                    _ => bail!("unknown battery status")
+                };
+                let level = rdr.read_f32::<LittleEndian>()?;
+
+                PlayerAttribute::Battery(status, level)
+            }
         };
 
         Ok(msg)
@@ -203,6 +230,7 @@ impl PlayerAttribute {
                 let buffer = if *is_visible { &[1] } else { &[0] };
                 wtr.write_all(buffer).unwrap();
             }
+            PlayerAttribute::Battery(_, _) => todo!(),
         }
     }
 }

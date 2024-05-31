@@ -52,6 +52,28 @@ pub async fn process_player_attribute(player_attribute: PlayerAttribute, sender:
             context.get_headset_mut(device_id).unwrap().temp.in_dev_mode = in_dev_mode;
             context.status_generation += 1;
         }
+        PlayerAttribute::Battery(status, level) => {
+            let device_id = {
+                let context = context_ref.read().await;
+                let device_id = match context.connection_id_to_player.get(&sender) {
+                    Some(id) => *id,
+                    None => {
+                        println!("could not find device id for sender: {sender}");
+                        return;
+                    }
+                };
+                let headset = context.status.headsets.get(&device_id).unwrap();
+                if headset.temp.battery_status == status && headset.temp.battery_level == level {
+                    return;
+                }
+                device_id
+            };
+
+            let mut context = context_ref.write().await;
+            context.get_headset_mut(device_id).unwrap().temp.battery_status = status;
+            context.get_headset_mut(device_id).unwrap().temp.battery_level = level;
+            context.status_generation += 1;
+        }
         _ => {}
     }
 }
