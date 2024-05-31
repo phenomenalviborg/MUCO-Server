@@ -18,6 +18,7 @@ impl ClientDb {
     }
 
     pub async fn new_client(&mut self, socket: TcpStream, addr: SocketAddr, tx: broadcast::Sender<BroadcastMsg>, log_folder_path: Option<&str>, server_start_time: SystemTime) {
+        socket.set_nodelay(true).unwrap();
         let session_id = self.session_id_counter;
         self.session_id_counter += 1;
 
