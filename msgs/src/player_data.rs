@@ -1,4 +1,4 @@
-use std::{io::{Cursor, Read, Write}, vec};
+use std::{io::{Read, Write}, vec};
 
 use anyhow::bail;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -17,7 +17,7 @@ pub enum PlayerAttribute {
     DeviceId (u32),
     Color (Color),
     Trans,
-    Level,
+    Level (f32),
     Hands,
     Language (Language),
     EnvironmentCode (Box<str>),
@@ -25,30 +25,80 @@ pub enum PlayerAttribute {
     IsVisible (bool),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum PlayerAttributeTag {
     DeviceId,
-    _Color,
-    _Trans,
-    _Level,
-    _Hands,
-    _Language,
-    _EnvironmentCode,
-    _DevMode,
-    _IsVisible,
+    Color,
+    Trans,
+    Level,
+    Hands,
+    Language,
+    EnvironmentCode,
+    DevMode,
+    IsVisible,
+}
+
+impl PlayerAttributeTag {
+    pub const ALL_TAGS: &'static [PlayerAttributeTag] = &[
+        PlayerAttributeTag::DeviceId,
+        PlayerAttributeTag::Color,
+        PlayerAttributeTag::Trans,
+        PlayerAttributeTag::Level,
+        PlayerAttributeTag::Hands,
+        PlayerAttributeTag::Language,
+        PlayerAttributeTag::EnvironmentCode,
+        PlayerAttributeTag::DevMode,
+        PlayerAttributeTag::IsVisible,
+    ];
+
+    pub fn decode(rdr: &mut &[u8]) -> anyhow::Result<Self> {
+        let tag_index = rdr.read_u32::<LittleEndian>()?;
+        let tag = match tag_index {
+            0 => PlayerAttributeTag::DeviceId,
+            1 => PlayerAttributeTag::Color,
+            2 => PlayerAttributeTag::Trans,
+            3 => PlayerAttributeTag::Level,
+            4 => PlayerAttributeTag::Hands,
+            5 => PlayerAttributeTag::Language,
+            6 => PlayerAttributeTag::EnvironmentCode,
+            7 => PlayerAttributeTag::DevMode,
+            8 => PlayerAttributeTag::IsVisible,
+            _ => bail!("tag index not supported")
+        };
+        Ok(tag)
+    }
+    pub fn pack(&self, wtr: &mut impl Write) {
+        let tag_index = match self {
+            PlayerAttributeTag::DeviceId => 0,
+            PlayerAttributeTag::Color => 1,
+            PlayerAttributeTag::Trans => 2,
+            PlayerAttributeTag::Level => 3,
+            PlayerAttributeTag::Hands => 4,
+            PlayerAttributeTag::Language => 5,
+            PlayerAttributeTag::EnvironmentCode => 6,
+            PlayerAttributeTag::DevMode => 7,
+            PlayerAttributeTag::IsVisible => 8,
+        };
+        wtr.write_u32::<LittleEndian>(tag_index).unwrap();
+    }
 }
 
 impl PlayerAttribute {
-    pub fn decode(input_buffer: &[u8], _sender: u32) -> anyhow::Result<PlayerAttribute> {
-        let mut rdr = Cursor::new(&input_buffer);
-        let msg_type_index = rdr.read_u32::<LittleEndian>().unwrap();
+    pub const TRANS_SIZE: usize = 28;
+    pub const LEVEL_SIZE: usize = 4;
 
-        let msg = match msg_type_index {
-            0 => {
+    pub fn decode(rdr: &mut &[u8]) -> anyhow::Result<PlayerAttribute> {
+        let tag = PlayerAttributeTag::decode(rdr)?;
+        Self::decode_(rdr, tag)
+    }
+
+    pub fn decode_(rdr: &mut &[u8], tag: PlayerAttributeTag) -> anyhow::Result<PlayerAttribute> {
+        let msg = match tag {
+            PlayerAttributeTag::DeviceId => {
                 let device_id = rdr.read_u32::<LittleEndian>().unwrap();
                 PlayerAttribute::DeviceId(device_id)
             }
-            1 => {
+            PlayerAttributeTag::Color => {
                 let r = rdr.read_f32::<LittleEndian>().unwrap();
                 let g = rdr.read_f32::<LittleEndian>().unwrap();
                 let b = rdr.read_f32::<LittleEndian>().unwrap();
@@ -56,10 +106,25 @@ impl PlayerAttribute {
                 let color = Color { r, g, b, a };
                 PlayerAttribute::Color(color)
             }
-            2 => PlayerAttribute::Trans,
-            3 => PlayerAttribute::Level,
-            4 => PlayerAttribute::Hands,
-            5 => {
+            PlayerAttributeTag::Trans => {
+                *rdr = &rdr[Self::TRANS_SIZE..];
+                PlayerAttribute::Trans
+            }
+            PlayerAttributeTag::Level => {
+                let level = rdr.read_f32::<LittleEndian>()?;
+                PlayerAttribute::Level (level)
+            }
+            PlayerAttributeTag::Hands => {
+                let _hand_type = rdr.read_u32::<LittleEndian>()?;
+                let trans_count = rdr.read_u32::<LittleEndian>()?;
+                let len = trans_count as usize * Self::TRANS_SIZE;
+                *rdr = &rdr[len..];
+                let trans_count = rdr.read_u32::<LittleEndian>()?;
+                let len = trans_count as usize * Self::TRANS_SIZE;
+                *rdr = &rdr[len..];
+                PlayerAttribute::Hands
+            }
+            PlayerAttributeTag::Language => {
                 let language_index = rdr.read_u32::<LittleEndian>().unwrap();
                 let language = match language_index {
                     0 => Language::EnGB,
@@ -69,14 +134,14 @@ impl PlayerAttribute {
                 };
                 PlayerAttribute::Language(language)
             }
-            6 => {
+            PlayerAttributeTag::EnvironmentCode => {
                 let len = rdr.read_u32::<LittleEndian>().unwrap();
                 let mut buf = vec![0u8; len as usize];
                 rdr.read(&mut buf).unwrap();
                 let code = String::from_utf8(buf).unwrap().into();
                 PlayerAttribute::EnvironmentCode(code)
             }
-            7 => {
+            PlayerAttributeTag::DevMode => {
                 let x = rdr.read_u8().unwrap();
                 let in_dev_mode = match x {
                     0 => false,
@@ -84,24 +149,13 @@ impl PlayerAttribute {
                 };
                 PlayerAttribute::DevMode(in_dev_mode)
             }
-            8 => {
-                let x = rdr.read_u8().unwrap();
-                let in_dev_mode = match x {
-                    0 => false,
-                    _ => true,
-                };
-                PlayerAttribute::DevMode(in_dev_mode)
-            }
-            9 => {
+            PlayerAttributeTag::IsVisible => {
                 let x = rdr.read_u8().unwrap();
                 let is_visible = match x {
                     0 => false,
                     _ => true,
                 };
                 PlayerAttribute::IsVisible(is_visible)
-            }
-            type_index => {
-                bail!("unsupported player data type: {type_index}");
             }
         };
 
@@ -119,7 +173,7 @@ impl PlayerAttribute {
                 wtr.write_f32::<LittleEndian>(color.a).unwrap();
             }
             PlayerAttribute::Trans => todo!(),
-            PlayerAttribute::Level => todo!(),
+            PlayerAttribute::Level (_level) => todo!(),
             PlayerAttribute::Hands => todo!(),
             PlayerAttribute::Language (language) => {
                 wtr.write_u32::<LittleEndian>(5).unwrap();

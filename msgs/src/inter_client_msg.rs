@@ -1,4 +1,4 @@
-use std::io::{Cursor, Write};
+use std::io::Write;
 
 use anyhow::bail;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -10,26 +10,23 @@ pub enum InterClientMsg {
     _Interaction,
     PlayerData (PlayerDataMsg),
     _Ping,
-    _AllPlayerData,
-    _Diff,
+    AllPlayerData (Vec<u8>),
+    Diff (Vec<u8>),
 }
 
 impl InterClientMsg {
-    pub fn decode(input_buffer: &[u8], sender: u32) -> anyhow::Result<InterClientMsg> {
-        let mut rdr = Cursor::new(&input_buffer);
+    pub fn decode(rdr: &mut &[u8]) -> anyhow::Result<InterClientMsg> {
         let msg_type_index = rdr.read_u32::<LittleEndian>().unwrap();
-
-        let begin = 4;
 
         let msg = match msg_type_index {
             0 => InterClientMsg::_Interaction,
             1 => {
-                let player_data_msg = PlayerDataMsg::decode(&input_buffer[begin..], sender)?;
+                let player_data_msg = PlayerDataMsg::decode(rdr)?;
                 InterClientMsg::PlayerData(player_data_msg)
             }
             2 => InterClientMsg::_Ping,
-            3 => InterClientMsg::_AllPlayerData,
-            4 => InterClientMsg::_Diff,
+            3 => InterClientMsg::AllPlayerData (rdr.to_owned()),
+            4 => InterClientMsg::Diff (rdr.to_owned()),
             type_index => {
                 bail!("unsupported inter client msg type: {type_index}");
             }
@@ -50,10 +47,12 @@ impl InterClientMsg {
             InterClientMsg::_Ping => {
                 todo!()
             }
-            InterClientMsg::_AllPlayerData => {
+            InterClientMsg::AllPlayerData (_data) => {
                 todo!();
             }
-            InterClientMsg::_Diff => todo!(),
+            InterClientMsg::Diff (_diff) => {
+                todo!();
+            }
         }
     }
 }

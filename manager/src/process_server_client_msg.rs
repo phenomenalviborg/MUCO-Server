@@ -1,4 +1,4 @@
-use msgs::{inter_client_msg::InterClientMsg, player_data::PlayerAttribute, player_data_msg::PlayerDataMsg, server_client_msg::ServerClientMsg};
+use msgs::{inter_client_msg::InterClientMsg, player_data::{PlayerAttribute, PlayerAttributeTag}, player_data_msg::PlayerDataMsg, server_client_msg::ServerClientMsg};
 
 use crate::{connection_status::ConnectionStatus, context::MucoContextRef, headset_data::HeadsetData};
 
@@ -14,8 +14,8 @@ pub async fn process_server_client_msg(msg: ServerClientMsg<'_>, context_ref: &M
             let mut context = context_ref.write().await;
             context.disconnect(session_id).await;
         }
-        ServerClientMsg::InterClient(sender, input_buffer) => {
-            let result = InterClientMsg::decode(&input_buffer, sender);
+        ServerClientMsg::InterClient(sender, mut input_buffer) => {
+            let result = InterClientMsg::decode(&mut input_buffer);
             let inter_client_msg = match result {
                 Ok(msg) => msg,
                 Err(e) => {
@@ -68,8 +68,24 @@ pub async fn process_server_client_msg(msg: ServerClientMsg<'_>, context_ref: &M
                     }
                 }
                 InterClientMsg::_Ping => {}
-                InterClientMsg::_AllPlayerData => {}
-                InterClientMsg::_Diff => {}
+                InterClientMsg::AllPlayerData (data) => {
+                    let mut rdr = &data[..];
+                    for tag in PlayerAttributeTag::ALL_TAGS {
+                        let decode_result = PlayerAttribute::decode_(&mut rdr, *tag);
+                        match decode_result {
+                            Ok(att) => {
+                                dbg!(att);
+                            }
+                            Err(err) => {
+                                dbg!(err);
+                                todo!()
+                            }
+                        }
+                    }
+                }
+                InterClientMsg::Diff (_diff) => {
+
+                }
             }
 
             context_ref.write().await.get_or_request_unique_device_id(sender);
