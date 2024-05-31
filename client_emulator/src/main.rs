@@ -67,8 +67,8 @@ fn display(log_bytes: &[u8]) {
             let byte_count = end - begin;
             print!("{byte_count:4} ");
             match msg {
-                ClientServerMsg::BinaryMessageTo(_, msg_bytes) => {
-                    let decode_result = InterClientMsg::decode(msg_bytes, 0);
+                ClientServerMsg::BinaryMessageTo(_, mut msg_bytes) => {
+                    let decode_result = InterClientMsg::decode(&mut msg_bytes);
                     let msg = decode_result.unwrap();
                     print!("{msg:?}");
                 }
@@ -95,15 +95,15 @@ fn display(log_bytes: &[u8]) {
     println!("msgs per second: {msgs_per_second}");
     println!();
 
-    // let duration_count = line_nr - 1;
+    let duration_count = line_nr - 1;
     for (i, x) in time_stamp_buckets.iter().copied().enumerate() {
-        // let frac_count = x as f32 / duration_count as f32;
-        // let perc_count = frac_count * 100.0;
+        let frac_count = x as f32 / duration_count as f32;
+        let perc_count = frac_count * 100.0;
         let frac_time = (i as f32 * x as f32) / duration as f32;
         let perc_time = frac_time * 100.0;
         let fps = 1000.0 / i as f32;
-        if perc_time > 1.0 {
-            println!("{i:4}ms x {x:3} {perc_time:4.1}% {fps:5.1}fps");
+        if perc_time > 1.0 || perc_count > 1.0 {
+            println!("{i:4}ms x {x:4} {perc_time:4.1}% time {perc_count:4.1}% msgs {fps:5.1}fps");
         }
     }
 }
