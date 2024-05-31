@@ -115,10 +115,14 @@ impl PlayerAttribute {
                 PlayerAttribute::Level (level)
             }
             PlayerAttributeTag::Hands => {
-                let _hand_type = rdr.read_u32::<LittleEndian>()?;
+                let _hand_type = rdr.read_u8()?;
+                let _left_hand_confidence = rdr.read_u8()?;
+                let _right_hand_confidence = rdr.read_u8()?;
+
                 let trans_count = rdr.read_u32::<LittleEndian>()?;
                 let len = trans_count as usize * Self::TRANS_SIZE;
                 *rdr = &rdr[len..];
+
                 let trans_count = rdr.read_u32::<LittleEndian>()?;
                 let len = trans_count as usize * Self::TRANS_SIZE;
                 *rdr = &rdr[len..];
