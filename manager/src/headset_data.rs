@@ -39,6 +39,7 @@ pub struct TempHeadsetData {
     pub session_duration: i64, //in seconds
     pub in_dev_mode: bool,
     pub is_visible: bool,
+    pub data_buffer: Option<Vec<u8>>,
 }
 
 impl TempHeadsetData {
@@ -49,6 +50,7 @@ impl TempHeadsetData {
             session_duration: DEFAULT_SESSION_DURATION,
             in_dev_mode: false,
             is_visible: true,
+            data_buffer: None,
         }
     }
 }
