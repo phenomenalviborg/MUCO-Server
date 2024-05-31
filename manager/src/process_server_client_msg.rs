@@ -1,6 +1,6 @@
 use msgs::{inter_client_msg::InterClientMsg, player_data::{PlayerAttribute, PlayerAttributeTag}, player_data_msg::PlayerDataMsg, server_client_msg::ServerClientMsg};
 
-use crate::{connection_status::ConnectionStatus, context::MucoContextRef, headset_data::HeadsetData};
+use crate::{connection_status::ConnectionStatus, context::{get_or_request_device_id, MucoContextRef}, headset_data::HeadsetData};
 
 pub async fn process_player_attribute(player_attribute: PlayerAttribute, sender: u32, context_ref: &MucoContextRef) {
     match player_attribute {
@@ -31,50 +31,32 @@ pub async fn process_player_attribute(player_attribute: PlayerAttribute, sender:
             context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Language (language)))).await;
             context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::EnvironmentCode (environment_code.to_owned())))).await;
         }
-        PlayerAttribute::DevMode(in_dev_mode) => {
-            let device_id = {
-                let context = context_ref.read().await;
-                let device_id = match context.connection_id_to_player.get(&sender) {
-                    Some(id) => *id,
-                    None => {
-                        println!("could not find device id for sender: {sender}");
-                        return;
+        _ => {
+            if let Some(device_id) = get_or_request_device_id(sender, context_ref).await {
+                let update = {
+                    let read = context_ref.read().await;
+                    let headset = read.status.headsets.get(&device_id).unwrap();
+                    match &player_attribute {
+                        PlayerAttribute::DevMode(in_dev_mode) => headset.temp.in_dev_mode != *in_dev_mode,
+                        PlayerAttribute::Battery(status, level) => headset.temp.battery_status != *status || headset.temp.battery_level != *level,
+                        _ => false
                     }
                 };
-                let headset = context.status.headsets.get(&device_id).unwrap();
-                if headset.temp.in_dev_mode == in_dev_mode {
-                    return;
-                }
-                device_id
-            };
-
-            let mut context = context_ref.write().await;
-            context.get_headset_mut(device_id).unwrap().temp.in_dev_mode = in_dev_mode;
-            context.status_generation += 1;
-        }
-        PlayerAttribute::Battery(status, level) => {
-            let device_id = {
-                let context = context_ref.read().await;
-                let device_id = match context.connection_id_to_player.get(&sender) {
-                    Some(id) => *id,
-                    None => {
-                        println!("could not find device id for sender: {sender}");
-                        return;
+                if update {
+                    let mut write = context_ref.write().await;
+                    let headset = write.status.headsets.get_mut(&device_id).unwrap();
+                    match player_attribute {
+                        PlayerAttribute::DevMode(in_dev_mode) => headset.temp.in_dev_mode = in_dev_mode,
+                        PlayerAttribute::Battery(status, level) => {
+                            headset.temp.battery_status = status;
+                            headset.temp.battery_level = level;
+                        }
+                        _ => {}
                     }
-                };
-                let headset = context.status.headsets.get(&device_id).unwrap();
-                if headset.temp.battery_status == status && headset.temp.battery_level == level {
-                    return;
+                    write.status_generation += 1;
                 }
-                device_id
-            };
-
-            let mut context = context_ref.write().await;
-            context.get_headset_mut(device_id).unwrap().temp.battery_status = status;
-            context.get_headset_mut(device_id).unwrap().temp.battery_level = level;
-            context.status_generation += 1;
+            }
         }
-        _ => {}
     }
 }
 
@@ -115,9 +97,10 @@ pub async fn process_server_client_msg(msg: ServerClientMsg<'_>, context_ref: &M
                     process_data_buffer(data, sender, context_ref).await;
                 }
                 InterClientMsg::Diff (diff) => {
+                    let Some(devide_id) = get_or_request_device_id(sender, context_ref).await else { return };
                     let data = {
-                        let mut x = context_ref.write().await;
-                        x.get_data_buffer(sender)
+                        let mut write = context_ref.write().await;
+                        write.status.headsets.get_mut(&devide_id).unwrap().temp.data_buffer.take()
                     };
                     if let Some(mut data) = data {
                         let mut rdr = &diff[..];
@@ -131,6 +114,7 @@ pub async fn process_server_client_msg(msg: ServerClientMsg<'_>, context_ref: &M
         }
     }
 }
+
 
 pub async fn process_data_buffer(data: Vec<u8>, sender: u32, context_ref: &MucoContextRef) {
     let mut rdr = &data[..];
@@ -146,7 +130,9 @@ pub async fn process_data_buffer(data: Vec<u8>, sender: u32, context_ref: &MucoC
             }
         }
     }
-    context_ref.write().await.store_data_buffer(sender, data);
+    let mut write = context_ref.write().await;
+    let device_id = *write.connection_id_to_player.get(&sender).unwrap();
+    write.status.headsets.get_mut(&device_id).unwrap().temp.data_buffer = Some(data);
 }
 
 fn apply_diff(a: &mut Vec<u8>, diff: &[u8]) -> Option<()> {

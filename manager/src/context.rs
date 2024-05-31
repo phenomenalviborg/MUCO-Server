@@ -75,28 +75,23 @@ impl MucoContext {
             self.send_msg_to_player(connection_id, msg).await;
         }
     }
+}
 
-    pub fn store_data_buffer(&mut self, sender: u32, data: Vec<u8>) {
-        let device_id = match self.connection_id_to_player.get(&sender) {
-            Some(id) => *id,
-            None => {
-                println!("could not find device id for sender: {sender}");
-                return;
-            }
-        };
-        let headset = self.status.headsets.get_mut(&device_id).unwrap();
-        headset.temp.data_buffer = Some(data);
+pub async fn get_or_request_device_id(connection_id: u32, context_ref: &MucoContextRef) -> Option<u32> {
+    {
+        let read = context_ref.read().await;
+        if let Some(device_id) = read.connection_id_to_player.get(&connection_id) {
+            return Some(*device_id);
+        }
+        if read.unknown_connections.contains(&connection_id) {
+            return None;
+        }
     }
-
-    pub fn get_data_buffer(&mut self, sender: u32) -> Option<Vec<u8>> {
-        let device_id = match self.connection_id_to_player.get(&sender) {
-            Some(id) => *id,
-            None => {
-                println!("could not find device id for sender: {sender}");
-                return None;
-            }
-        };
-        let headset = self.status.headsets.get_mut(&device_id).unwrap();
-        headset.temp.data_buffer.take()
+    {
+        let mut write = context_ref.write().await;
+        if !write.unknown_connections.contains(&connection_id) {
+            write.unknown_connections.push(connection_id)
+        }
     }
+    None
 }
