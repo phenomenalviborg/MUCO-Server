@@ -132,6 +132,8 @@ impl PlayerAttribute {
                 let _left_hand_confidence = rdr.read_u8()?;
                 let _right_hand_confidence = rdr.read_u8()?;
 
+                *rdr = &rdr[Self::TRANS_SIZE..];
+
                 let trans_count = rdr.read_u32::<LittleEndian>()?;
                 let len = trans_count as usize * Self::TRANS_SIZE;
                 *rdr = &rdr[len..];
