@@ -11,7 +11,7 @@ pub fn dequeue_msg(input_buffer: &[u8]) -> Option<(usize, usize)> {
 
     let msg_ln = rdr.read_u32::<LittleEndian>().unwrap() as usize;
 
-    if msg_ln > 2000 {
+    if msg_ln > 3000 {
         println!("long message: {msg_ln}");
     }
 
