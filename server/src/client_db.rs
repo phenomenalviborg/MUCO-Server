@@ -1,7 +1,7 @@
 use std::{fs::File, io::Write, net::SocketAddr, time::SystemTime};
 
 use byteorder::{LittleEndian, WriteBytesExt};
-use msgs::{client_server_msg::{Address, ClientServerMsg}, client_type::ClientType, dequeue::dequeue_msg, server_client_msg::ServerClientMsg};
+use msgs::{client_server_msg::{Address, ClientServerMsg}, client_type::ClientType, dequeue::dequeue_msg, network_version::NETWORK_VERSION_NUMBER, server_client_msg::ServerClientMsg};
 use tokio::{net::TcpStream, io::{AsyncReadExt, AsyncWriteExt}, sync::broadcast};
 
 use crate::broadcast_msg::BroadcastMsg;
@@ -36,6 +36,32 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
     tokio::spawn(async move {
         let mut static_buffer = [0; 1024];
         let mut input_buffer = Vec::new();
+
+        while input_buffer.len() < 4
+        {
+            let result = socket.read(&mut static_buffer).await;
+            let len = match result {
+                Ok(len) => len,
+                Err(e) => {
+                    println!("error while reading from socker: {e}");
+                    return;
+                }
+            };
+            if len == 0 {
+                println!("client died: {session_id} {addr}");
+                return;
+            }
+            input_buffer.extend(&static_buffer[..len]);
+        }
+
+        {
+            let network_version_number = &input_buffer[..4];
+            if network_version_number != NETWORK_VERSION_NUMBER {
+                println!("rejecting client because of network version number, expected: {NETWORK_VERSION_NUMBER:?}, got: {network_version_number:?}");
+                return;
+            }
+            input_buffer.drain(..4);
+        }
 
         {
             let mut output_buffer = Vec::new();

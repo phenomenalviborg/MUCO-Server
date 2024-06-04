@@ -1,6 +1,6 @@
 use tokio::{net::TcpStream, io::{AsyncReadExt, AsyncWriteExt}};
 
-use crate::{dequeue::dequeue_msg, discover_server::find_local_server_ip};
+use crate::{dequeue::dequeue_msg, discover_server::find_local_server_ip, network_version::NETWORK_VERSION_NUMBER};
 
 pub fn spawn_relay_server_connection_process(server_to_main: tokio::sync::mpsc::Sender<Vec<u8>>, reconnect: bool) -> tokio::sync::mpsc::Sender<Vec<u8>> {
     let (main_to_server, mut server_from_main) = tokio::sync::mpsc::channel::<Vec<u8>>(100);
@@ -13,6 +13,7 @@ pub fn spawn_relay_server_connection_process(server_to_main: tokio::sync::mpsc::
             let mut input_buffer = Vec::new();
 
             let mut stream = TcpStream::connect(addr).await.unwrap();
+            stream.write(NETWORK_VERSION_NUMBER).await.unwrap();
 
             'connected: loop {
                 tokio::select! {

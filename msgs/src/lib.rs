@@ -4,6 +4,7 @@ pub mod color;
 pub mod dequeue;
 pub mod discover_server;
 pub mod inter_client_msg;
+pub mod network_version;
 pub mod player_data_msg;
 pub mod player_data;
 pub mod relay_server_connection_process;
