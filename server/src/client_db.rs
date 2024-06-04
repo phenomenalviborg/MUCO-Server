@@ -68,7 +68,16 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
             let msg = ServerClientMsg::AssignSessionId(session_id);
             msg.pack(&mut output_buffer);
             match socket.write_all(&output_buffer).await {
-                Ok(_) => {},
+                Ok(_) => {
+                    let flush_result = socket.flush().await;
+                    match flush_result {
+                        Ok(_) => {},
+                        Err(err) => {
+                            println!("error while flushing data: {err}");
+                            return;
+                        }
+                    }
+                },
                 Err(e) => {
                     println!("disconnecting because of error while writing to client: {e}");
                     return;
