@@ -43,6 +43,7 @@ pub struct TempHeadsetData {
     pub battery_level: f32,
     pub data_buffer: Option<Vec<u8>>,
     pub level: f32,
+    pub audio_volume: f32,
 }
 
 impl TempHeadsetData {
@@ -57,6 +58,7 @@ impl TempHeadsetData {
             battery_status: BatteryStatus::Unknown,
             battery_level: 0.0,
             level: 0.0,
+            audio_volume:0.5,
         }
     }
 }

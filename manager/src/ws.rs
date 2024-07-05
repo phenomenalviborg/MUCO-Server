@@ -54,6 +54,7 @@ pub enum ClientMsg {
     Kick(DeviceId),
     SetColor(DeviceId, Color),
     SetLevel(DeviceId, f32),
+    SetAudioVolume(DeviceId, f32),
     SetName(DeviceId, String),
     SetLanguage(DeviceId, Language),
     StartSession(DeviceId),
@@ -119,6 +120,16 @@ pub async fn process_client_msg(client_msg: ClientMsg, context_ref: &MucoContext
             headset.temp.level = level;
             if let ConnectionStatus::Connected(session_id) = headset.temp.connection_status {
                 let msg = InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Level(level)));
+                context.send_msg_to_player(session_id, msg).await;
+            }
+            UpdateClients
+        }
+        SetAudioVolume(unique_device_id,audio_volume) => {
+            let mut context = context_ref.write().await;
+            let headset = context.status.headsets.get_mut(&unique_device_id).context("could not find headset with id {unique_device_id}")?;
+            headset.temp.audio_volume = audio_volume;
+            if let ConnectionStatus::Connected(session_id) = headset.temp.connection_status {
+                let msg = InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::AudioVolume(audio_volume)));
                 context.send_msg_to_player(session_id, msg).await;
             }
             UpdateClients

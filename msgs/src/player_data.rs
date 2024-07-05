@@ -33,6 +33,7 @@ pub enum PlayerAttribute {
     DevMode (bool),
     IsVisible (bool),
     Battery (BatteryStatus, f32),
+    AudioVolume (f32),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -47,6 +48,7 @@ pub enum PlayerAttributeTag {
     DevMode,
     IsVisible,
     Battery,
+    AudioVolume,
 }
 
 impl PlayerAttributeTag {
@@ -61,6 +63,7 @@ impl PlayerAttributeTag {
         PlayerAttributeTag::DevMode,
         PlayerAttributeTag::IsVisible,
         PlayerAttributeTag::Battery,
+        PlayerAttributeTag::AudioVolume,
     ];
 
     pub fn decode(rdr: &mut &[u8]) -> anyhow::Result<Self> {
@@ -75,6 +78,8 @@ impl PlayerAttributeTag {
             6 => PlayerAttributeTag::EnvironmentCode,
             7 => PlayerAttributeTag::DevMode,
             8 => PlayerAttributeTag::IsVisible,
+            9 => PlayerAttributeTag::Battery,
+            10 => PlayerAttributeTag::AudioVolume,
             _ => bail!("tag index not supported")
         };
         Ok(tag)
@@ -91,6 +96,7 @@ impl PlayerAttributeTag {
             PlayerAttributeTag::DevMode => 7,
             PlayerAttributeTag::IsVisible => 8,
             PlayerAttributeTag::Battery => 9,
+            PlayerAttributeTag::AudioVolume => 10,
         };
         wtr.write_u32::<LittleEndian>(tag_index).unwrap();
     }
@@ -188,8 +194,11 @@ impl PlayerAttribute {
                     _ => bail!("unknown battery status")
                 };
                 let level = rdr.read_f32::<LittleEndian>()?;
-
                 PlayerAttribute::Battery(status, level)
+            }
+            PlayerAttributeTag::AudioVolume => {
+                let audio_volume = rdr.read_f32::<LittleEndian>()?;
+                PlayerAttribute::AudioVolume(audio_volume)
             }
         };
 
@@ -237,6 +246,10 @@ impl PlayerAttribute {
                 wtr.write_all(buffer).unwrap();
             }
             PlayerAttribute::Battery(_, _) => todo!(),
+            PlayerAttribute::AudioVolume(audio_volume) => {
+                wtr.write_u32::<LittleEndian>(10).unwrap();
+                wtr.write_f32::<LittleEndian>(*audio_volume).unwrap();
+            }
         }
     }
 }

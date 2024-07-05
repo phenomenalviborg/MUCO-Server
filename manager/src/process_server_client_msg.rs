@@ -40,6 +40,7 @@ pub async fn process_player_attribute(player_attribute: PlayerAttribute, sender:
                         PlayerAttribute::DevMode(in_dev_mode) => headset.temp.in_dev_mode != *in_dev_mode,
                         PlayerAttribute::Battery(status, level) => headset.temp.battery_status != *status || headset.temp.battery_level != *level,
                         PlayerAttribute::Level(level) => headset.temp.level != *level,
+                        PlayerAttribute::AudioVolume(audio_volume) => headset.temp.audio_volume != *audio_volume,
                         _ => false
                     }
                 };
@@ -54,6 +55,9 @@ pub async fn process_player_attribute(player_attribute: PlayerAttribute, sender:
                         }
                         PlayerAttribute::Level(level) => {
                             headset.temp.level = level;
+                        }
+                        PlayerAttribute::AudioVolume(audio_volume) => {
+                            headset.temp.audio_volume = audio_volume;
                         }
                         _ => {}
                     }
