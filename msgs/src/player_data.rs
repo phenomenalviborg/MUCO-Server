@@ -207,7 +207,10 @@ impl PlayerAttribute {
                 wtr.write_f32::<LittleEndian>(color.a).unwrap();
             }
             PlayerAttribute::Trans => todo!(),
-            PlayerAttribute::Level (_level) => todo!(),
+            PlayerAttribute::Level (level) => {
+                wtr.write_u32::<LittleEndian>(3).unwrap();
+                wtr.write_f32::<LittleEndian>(*level).unwrap();
+            },
             PlayerAttribute::Hands => todo!(),
             PlayerAttribute::Language (language) => {
                 wtr.write_u32::<LittleEndian>(5).unwrap();

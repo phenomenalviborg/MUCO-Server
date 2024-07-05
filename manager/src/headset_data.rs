@@ -42,11 +42,12 @@ pub struct TempHeadsetData {
     pub battery_status: BatteryStatus,
     pub battery_level: f32,
     pub data_buffer: Option<Vec<u8>>,
+    pub level: f32,
 }
 
 impl TempHeadsetData {
-    pub fn new() -> TempHeadsetData {
-        TempHeadsetData {
+    pub fn new() -> Self {
+        Self {
             connection_status: ConnectionStatus::Disconnected,
             session_state: SessionState::Paused(0),
             session_duration: DEFAULT_SESSION_DURATION,
@@ -55,6 +56,7 @@ impl TempHeadsetData {
             data_buffer: None,
             battery_status: BatteryStatus::Unknown,
             battery_level: 0.0,
+            level: 0.0,
         }
     }
 }

@@ -53,6 +53,7 @@ pub enum ClientMsg {
     Forget(DeviceId),
     Kick(DeviceId),
     SetColor(DeviceId, Color),
+    SetLevel(DeviceId, f32),
     SetName(DeviceId, String),
     SetLanguage(DeviceId, Language),
     StartSession(DeviceId),
@@ -108,6 +109,16 @@ pub async fn process_client_msg(client_msg: ClientMsg, context_ref: &MucoContext
             headset.persistent.color = color;
             if let ConnectionStatus::Connected(session_id) = headset.temp.connection_status {
                 let msg = InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Color(color)));
+                context.send_msg_to_player(session_id, msg).await;
+            }
+            UpdateClients
+        }
+        SetLevel(unique_device_id, level) => {
+            let mut context = context_ref.write().await;
+            let headset = context.status.headsets.get_mut(&unique_device_id).context("could not find headset with id {unique_device_id}")?;
+            headset.temp.level = level;
+            if let ConnectionStatus::Connected(session_id) = headset.temp.connection_status {
+                let msg = InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Level(level)));
                 context.send_msg_to_player(session_id, msg).await;
             }
             UpdateClients
