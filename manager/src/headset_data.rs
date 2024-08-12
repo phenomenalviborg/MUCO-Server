@@ -2,7 +2,7 @@ use msgs::{color::Color, player_data::{BatteryStatus, Language}};
 
 use crate::{connection_status::ConnectionStatus, status::EnvCodeName, DEFAULT_SESSION_DURATION};
 
-pub const DEFAULT_ENVIRONMENT_CODE: &str = "NO ENVIRONMENT CODE SET";
+pub const DEFAULT_ENVIRONMENT_CODE: &str = "AntilatencyAltEnvironmentHorizontalGrid~AgACBLhTiT_cRqA-r45jvZqZmT4AAAAAAAAAAACamRk_AQEAAgM";
 pub const DEFAULT_ENVIRONMENT_NAME: &str = "NoEnvironment";
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
