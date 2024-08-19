@@ -37,7 +37,8 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
         let mut static_buffer = [0; 1024];
         let mut input_buffer = Vec::new();
 
-        while input_buffer.len() < 4
+        let network_version_len = NETWORK_VERSION_NUMBER.len();
+        while input_buffer.len() < network_version_len
         {
             let result = socket.read(&mut static_buffer).await;
             let len = match result {
@@ -55,12 +56,12 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
         }
 
         {
-            let network_version_number = &input_buffer[..4];
+            let network_version_number = &input_buffer[..network_version_len];
             if network_version_number != NETWORK_VERSION_NUMBER {
                 println!("rejecting client because of network version number, expected: {NETWORK_VERSION_NUMBER:?}, got: {network_version_number:?}");
                 return;
             }
-            input_buffer.drain(..4);
+            input_buffer.drain(..network_version_len);
         }
 
         {
