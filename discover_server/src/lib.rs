@@ -1,4 +1,4 @@
-use std::{ffi::CString, ptr::null};
+use std::{ffi::{c_char, CStr, CString}, ptr::null};
 use mdns_sd::{Receiver, ServiceDaemon, ServiceEvent};
 
 #[no_mangle]
@@ -8,8 +8,11 @@ pub extern "C" fn hello() -> *mut i8 {
 }
 
 #[no_mangle]
-pub extern "C" fn new_discoverer() -> *mut Discoverer {
-    Box::into_raw(Box::new(Discoverer::new()))
+pub extern "C" fn new_discoverer(service_type_ptr: *const c_char) -> *mut Discoverer {
+    unsafe {
+        let service_type = CStr::from_ptr(service_type_ptr).to_str().unwrap();
+        Box::into_raw(Box::new(Discoverer::new(&service_type)))
+    }
 }
 
 #[no_mangle]
@@ -37,10 +40,8 @@ pub struct Discoverer {
 }
 
 impl Discoverer {
-    pub fn new() -> Discoverer {
+    pub fn new(service_type: &str) -> Discoverer {
         let mdns = ServiceDaemon::new().expect("Failed to create daemon");
-
-        let service_type = "_muco-server._tcp.local.";
         let receiver = mdns.browse(service_type).expect("Failed to browse");
 
         Discoverer {
