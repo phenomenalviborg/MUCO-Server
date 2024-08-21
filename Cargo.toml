@@ -2,9 +2,13 @@
 
 resolver = "2"
 
-members = [ "client_emulator", "discover_server",
+members = [
+    "client_emulator",
+    "discover_server",
+    "discoverable_service",
     "manager",
     "msgs",
+    "photo_server",
     "server",
 ]
 
@@ -24,3 +28,5 @@ uuid = "1.1"
 pollster = "0.3"
 
 mdns-sd = "0.11"
+
+bytes = "1.7.1"

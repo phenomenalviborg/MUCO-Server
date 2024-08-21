@@ -1,0 +1,14 @@
+[package]
+name = "photo_server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true, features = ["macros", "sync", "rt-multi-thread"] }
+warp = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+local-ip-address = { workspace = true }
+bytes = { workspace = true }
+
+discoverable_service = { path = "../discoverable_service" }

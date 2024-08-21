@@ -1,12 +1,12 @@
 use std::{env, fs::create_dir, net::{IpAddr, Ipv4Addr, SocketAddr}};
 
+use discoverable_service::register_msdn;
 use local_ip_address::local_ip;
 use tokio::{net::TcpListener, sync::broadcast};
-use crate::{broadcast_msg::BroadcastMsg, client_db::ClientDb, register_mdns::register_msdn};
+use crate::{broadcast_msg::BroadcastMsg, client_db::ClientDb};
 
 mod client_db;
 mod broadcast_msg;
-mod register_mdns;
 
 #[tokio::main]
 async fn main() {
@@ -36,7 +36,7 @@ async fn main() {
     let port = 1302;
     let my_local_ip = local_ip().unwrap();
 
-    let _mdns = register_msdn(my_local_ip, port);
+    let _mdns = register_msdn(my_local_ip, port, "muco-server");
 
     let addr = &SocketAddr::new(IpAddr::from(Ipv4Addr::UNSPECIFIED), port);
     let listener = TcpListener::bind(addr).await.unwrap();
