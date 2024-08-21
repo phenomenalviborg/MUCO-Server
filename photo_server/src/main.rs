@@ -28,12 +28,10 @@ async fn handle_upload(bytes: Bytes) -> Result<impl warp::Reply, warp::Rejection
     let mut quotes = part.split('"');
     quotes.next().unwrap();
     let name = quotes.next().unwrap();
-    println!("{name}");
     let begin_data = end_header + 4;
     let end_data = bytes.len() - 48;
     let data = &bytes[begin_data..end_data];
     let path = format!("{FOLDER_NAME}\\{name}");
-    println!("{path}");
     fs::write(path, data).unwrap();
     Ok(warp::reply())
 }
