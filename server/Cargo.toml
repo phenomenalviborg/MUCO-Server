@@ -8,6 +8,7 @@ tokio = { workspace = true, features = ["full"] }
 local-ip-address = { workspace = true }
 anyhow = { workspace = true }
 byteorder = { workspace = true }
+chrono = { workspace = true }
 
 msgs = { path = "../msgs" }
 discoverable_service = { path = "../discoverable_service" }

@@ -1,6 +1,7 @@
 use std::{fs::File, io::Write, net::SocketAddr, time::SystemTime};
 
-use byteorder::{LittleEndian, WriteBytesExt};
+use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
+use chrono::Local;
 use msgs::{client_server_msg::{Address, ClientServerMsg}, client_type::ClientType, dequeue::dequeue_msg, network_version::NETWORK_VERSION_NUMBER, server_client_msg::ServerClientMsg};
 use tokio::{net::TcpStream, io::{AsyncReadExt, AsyncWriteExt}, sync::broadcast};
 
@@ -27,29 +28,48 @@ impl ClientDb {
             let file_path = format!("{path}/{session_id}.muco_log");
             log_file = Some(File::create_new(file_path).unwrap());
         }
-        spawn_client_process(socket, tx, session_id, addr, server_start_time, log_file);
-        println!("accepted client: {session_id} {addr}");
+        spawn_client_process(socket, tx, session_id, server_start_time, log_file);
+        print_message_preamble_no_device_id(session_id);
+        println!("accepted new connection from {addr}");
     }
 }
 
-pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<BroadcastMsg>, session_id: u32, addr: SocketAddr, server_start_time: SystemTime, mut log_file: Option<File>) {
+pub fn print_message_preamble(session_id: u32, device_id: u32) {
+    print_message_preamble_no_device_id(session_id);
+    print!("{device_id} ");
+}
+
+pub fn print_timestamp() {
+    let date = Local::now();
+    print!("{} ", date.format("%Y-%m-%d %H:%M:%S"));
+}
+
+pub fn print_message_preamble_no_device_id(session_id: u32) {
+    print_timestamp();
+    print!("{session_id} ");
+}
+
+pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<BroadcastMsg>, session_id: u32, server_start_time: SystemTime, mut log_file: Option<File>) {
     tokio::spawn(async move {
         let mut static_buffer = [0; 1024];
         let mut input_buffer = Vec::new();
 
         let network_version_len = NETWORK_VERSION_NUMBER.len();
-        while input_buffer.len() < network_version_len
-        {
+        let device_id_len = 4;
+        let initial_message_len = network_version_len + device_id_len;
+        while input_buffer.len() < initial_message_len {
             let result = socket.read(&mut static_buffer).await;
             let len = match result {
                 Ok(len) => len,
                 Err(e) => {
+                    print_message_preamble_no_device_id(session_id);
                     println!("error while reading from socker: {e}");
                     return;
                 }
             };
             if len == 0 {
-                println!("client died: {session_id} {addr}");
+                print_message_preamble_no_device_id(session_id);
+                println!("client died");
                 return;
             }
             input_buffer.extend(&static_buffer[..len]);
@@ -58,11 +78,17 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
         {
             let network_version_number = &input_buffer[..network_version_len];
             if network_version_number != NETWORK_VERSION_NUMBER {
+                print_message_preamble_no_device_id(session_id);
                 println!("rejecting client because of network version number, expected: {NETWORK_VERSION_NUMBER:?}, got: {network_version_number:?}");
                 return;
             }
             input_buffer.drain(..network_version_len);
         }
+
+        let device_id = LittleEndian::read_u32(&input_buffer);
+        input_buffer.drain(..device_id_len);
+        print_message_preamble(session_id, device_id);
+        println!("received initial message");
 
         {
             let mut output_buffer = Vec::new();
@@ -74,12 +100,14 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
                     match flush_result {
                         Ok(_) => {},
                         Err(err) => {
+                            print_message_preamble(session_id, device_id);
                             println!("error while flushing data: {err}");
                             return;
                         }
                     }
                 },
                 Err(e) => {
+                    print_message_preamble(session_id, device_id);
                     println!("disconnecting because of error while writing to client: {e}");
                     return;
                 }
@@ -94,8 +122,10 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
                     let broadcast_msg = match result {
                         Ok(msg) => msg,
                         Err(e) => {
+                            print_message_preamble(session_id, device_id);
                             println!("error while receiving: {e}");
-                            println!("client disconnected: {session_id} {addr}");
+                            print_message_preamble(session_id, device_id);
+                            println!("client disconnected");
                             break;
                         }
                     };
@@ -106,6 +136,7 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
                                 match socket.write_all(&output_buffer).await {
                                     Ok(_) => {},
                                     Err(e) => {
+                                        print_message_preamble(session_id, device_id);
                                         println!("disconnecting because of error while writing to socket: {e}");
                                         break;
                                     }
@@ -123,12 +154,14 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
                     let len = match result {
                         Ok(len) => len,
                         Err(e) => {
+                            print_message_preamble(session_id, device_id);
                             println!("error while reading from socket: {e}");
                             break;
                         }
                     };
                     if len == 0 {
-                        println!("client died: {session_id} {addr}");
+                        print_message_preamble(session_id, device_id);
+                        println!("client died");
                         break;
                     }
                     input_buffer.extend(&static_buffer[..len]);
@@ -147,6 +180,7 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
                         let msg = match decode_result {
                             Ok(msg) => msg,
                             Err(e) => {
+                                print_message_preamble(session_id, device_id);
                                 println!("error while decode msg: {e}");
                                 break;
                             }
@@ -176,7 +210,10 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
                         } {
                             match tx.send(response) {
                                 Ok(_) => {}
-                                Err(e) => println!("error while trying to broadcast msg: {e}"),
+                                Err(e) => {
+                                    print_message_preamble(session_id, device_id);
+                                    println!("error while trying to broadcast msg: {e}");
+                                }
                             }
                         }
 
@@ -191,7 +228,10 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
             msg.pack(&mut output_buffer);
             match tx.send(BroadcastMsg::Send(Address::All, output_buffer)) {
                 Ok(_) => {}
-                Err(e) => println!("error while trying to broadcast exit msg: {e}"),
+                Err(e) => {
+                    print_message_preamble(session_id, device_id);
+                    println!("error while trying to broadcast exit msg: {e}");
+                }
             }
         }
     });

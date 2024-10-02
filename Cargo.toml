@@ -18,6 +18,7 @@ tokio-stream = "0.1"
 byteorder = "1.4"
 local-ip-address = "0.5"
 anyhow = "1.0"
+chrono = "0.4"
 
 warp = "0.3"
 serde = "1.0"

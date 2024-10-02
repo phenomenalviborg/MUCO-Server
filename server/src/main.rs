@@ -1,5 +1,6 @@
 use std::{env, fs::create_dir, net::{IpAddr, Ipv4Addr, SocketAddr}};
 
+use client_db::print_timestamp;
 use discoverable_service::register_msdn;
 use local_ip_address::local_ip;
 use tokio::{net::TcpListener, sync::broadcast};
@@ -41,6 +42,8 @@ async fn main() {
     let addr = &SocketAddr::new(IpAddr::from(Ipv4Addr::UNSPECIFIED), port);
     let listener = TcpListener::bind(addr).await.unwrap();
     
+
+    print_timestamp();
     println!("Server Started at ip: {my_local_ip}:{port}");
 
     let mut client_db = ClientDb::new();
