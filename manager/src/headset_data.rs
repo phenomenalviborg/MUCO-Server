@@ -1,4 +1,4 @@
-use msgs::{color::Color, player_data::{BatteryStatus, Language}};
+use msgs::{color::Color, player_data::{BatteryStatus, DeviceStats, Language}};
 
 use crate::{connection_status::ConnectionStatus, status::EnvCodeName, DEFAULT_SESSION_DURATION};
 
@@ -39,8 +39,7 @@ pub struct TempHeadsetData {
     pub session_duration: i64, //in seconds
     pub in_dev_mode: bool,
     pub is_visible: bool,
-    pub battery_status: BatteryStatus,
-    pub battery_level: f32,
+    pub device_stats: DeviceStats,
     pub data_buffer: Option<Vec<u8>>,
     pub level: f32,
     pub audio_volume: f32,
@@ -55,8 +54,11 @@ impl TempHeadsetData {
             in_dev_mode: false,
             is_visible: true,
             data_buffer: None,
-            battery_status: BatteryStatus::Unknown,
-            battery_level: 0.0,
+            device_stats: DeviceStats {
+                battery_status: BatteryStatus::Unknown,
+                battery_level: 0.0,
+                fps: 0.0,
+            },
             level: 0.0,
             audio_volume:0.5,
         }

@@ -13,6 +13,13 @@ pub enum Language {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct DeviceStats {
+    pub battery_status: BatteryStatus,
+    pub battery_level: f32,
+    pub fps: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum BatteryStatus {
     Unknown,
     Charging,
@@ -32,7 +39,7 @@ pub enum PlayerAttribute {
     EnvironmentCode (Box<str>),
     DevMode (bool),
     IsVisible (bool),
-    Battery (BatteryStatus, f32),
+    DeviceStats (DeviceStats),
     AudioVolume (f32),
 }
 
@@ -47,7 +54,7 @@ pub enum PlayerAttributeTag {
     EnvironmentCode,
     DevMode,
     IsVisible,
-    Battery,
+    DeviceStats,
     AudioVolume,
 }
 
@@ -62,7 +69,7 @@ impl PlayerAttributeTag {
         PlayerAttributeTag::EnvironmentCode,
         PlayerAttributeTag::DevMode,
         PlayerAttributeTag::IsVisible,
-        PlayerAttributeTag::Battery,
+        PlayerAttributeTag::DeviceStats,
         PlayerAttributeTag::AudioVolume,
     ];
 
@@ -78,7 +85,7 @@ impl PlayerAttributeTag {
             6 => PlayerAttributeTag::EnvironmentCode,
             7 => PlayerAttributeTag::DevMode,
             8 => PlayerAttributeTag::IsVisible,
-            9 => PlayerAttributeTag::Battery,
+            9 => PlayerAttributeTag::DeviceStats,
             10 => PlayerAttributeTag::AudioVolume,
             _ => bail!("tag index not supported")
         };
@@ -95,7 +102,7 @@ impl PlayerAttributeTag {
             PlayerAttributeTag::EnvironmentCode => 6,
             PlayerAttributeTag::DevMode => 7,
             PlayerAttributeTag::IsVisible => 8,
-            PlayerAttributeTag::Battery => 9,
+            PlayerAttributeTag::DeviceStats => 9,
             PlayerAttributeTag::AudioVolume => 10,
         };
         wtr.write_u32::<LittleEndian>(tag_index).unwrap();
@@ -183,18 +190,21 @@ impl PlayerAttribute {
                 };
                 PlayerAttribute::IsVisible(is_visible)
             }
-            PlayerAttributeTag::Battery => {
+            PlayerAttributeTag::DeviceStats => {
                 let status_byte = rdr.read_u8()?;
-                let status = match status_byte {
-                    0 => BatteryStatus::Unknown,
-                    1 => BatteryStatus::Charging,
-                    2 => BatteryStatus::Discharging,
-                    3 => BatteryStatus::NotCharging,
-                    4 => BatteryStatus::Full,
-                    _ => bail!("unknown battery status")
+                let device_stats = DeviceStats {
+                    battery_status: match status_byte {
+                        0 => BatteryStatus::Unknown,
+                        1 => BatteryStatus::Charging,
+                        2 => BatteryStatus::Discharging,
+                        3 => BatteryStatus::NotCharging,
+                        4 => BatteryStatus::Full,
+                        _ => bail!("unknown battery status")
+                    },
+                    battery_level: rdr.read_f32::<LittleEndian>()?,
+                    fps: rdr.read_f32::<LittleEndian>()?,
                 };
-                let level = rdr.read_f32::<LittleEndian>()?;
-                PlayerAttribute::Battery(status, level)
+                PlayerAttribute::DeviceStats(device_stats)
             }
             PlayerAttributeTag::AudioVolume => {
                 let audio_volume = rdr.read_f32::<LittleEndian>()?;
@@ -245,7 +255,7 @@ impl PlayerAttribute {
                 let buffer = if *is_visible { &[1] } else { &[0] };
                 wtr.write_all(buffer).unwrap();
             }
-            PlayerAttribute::Battery(_, _) => todo!(),
+            PlayerAttribute::DeviceStats(_) => todo!(),
             PlayerAttribute::AudioVolume(audio_volume) => {
                 wtr.write_u32::<LittleEndian>(10).unwrap();
                 wtr.write_f32::<LittleEndian>(*audio_volume).unwrap();

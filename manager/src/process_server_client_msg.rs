@@ -38,7 +38,7 @@ pub async fn process_player_attribute(player_attribute: PlayerAttribute, sender:
                     let headset = read.status.headsets.get(&device_id).unwrap();
                     match &player_attribute {
                         PlayerAttribute::DevMode(in_dev_mode) => headset.temp.in_dev_mode != *in_dev_mode,
-                        PlayerAttribute::Battery(status, level) => headset.temp.battery_status != *status || headset.temp.battery_level != *level,
+                        PlayerAttribute::DeviceStats(devise_stats) => headset.temp.device_stats != *devise_stats,
                         PlayerAttribute::Level(level) => headset.temp.level != *level,
                         PlayerAttribute::AudioVolume(audio_volume) => headset.temp.audio_volume != *audio_volume,
                         _ => false
@@ -49,16 +49,9 @@ pub async fn process_player_attribute(player_attribute: PlayerAttribute, sender:
                     let headset = write.status.headsets.get_mut(&device_id).unwrap();
                     match player_attribute {
                         PlayerAttribute::DevMode(in_dev_mode) => headset.temp.in_dev_mode = in_dev_mode,
-                        PlayerAttribute::Battery(status, level) => {
-                            headset.temp.battery_status = status;
-                            headset.temp.battery_level = level;
-                        }
-                        PlayerAttribute::Level(level) => {
-                            headset.temp.level = level;
-                        }
-                        PlayerAttribute::AudioVolume(audio_volume) => {
-                            headset.temp.audio_volume = audio_volume;
-                        }
+                        PlayerAttribute::DeviceStats(device_stats) => headset.temp.device_stats = device_stats,
+                        PlayerAttribute::Level(level) => headset.temp.level = level,
+                        PlayerAttribute::AudioVolume(audio_volume) => headset.temp.audio_volume = audio_volume,
                         _ => {}
                     }
                     write.status_generation += 1;
