@@ -58,6 +58,7 @@ impl TempHeadsetData {
                 battery_status: BatteryStatus::Unknown,
                 battery_level: 0.0,
                 fps: 0.0,
+                alt_tracking_confidence: 0.0,
             },
             level: 0.0,
             audio_volume:0.5,

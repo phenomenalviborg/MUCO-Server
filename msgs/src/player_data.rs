@@ -17,6 +17,7 @@ pub struct DeviceStats {
     pub battery_status: BatteryStatus,
     pub battery_level: f32,
     pub fps: f32,
+    pub alt_tracking_confidence: f32,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -203,6 +204,7 @@ impl PlayerAttribute {
                     },
                     battery_level: rdr.read_f32::<LittleEndian>()?,
                     fps: rdr.read_f32::<LittleEndian>()?,
+                    alt_tracking_confidence: rdr.read_f32::<LittleEndian>()?,
                 };
                 PlayerAttribute::DeviceStats(device_stats)
             }
