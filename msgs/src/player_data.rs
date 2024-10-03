@@ -13,11 +13,21 @@ pub enum Language {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum TemperatureWarningLevel {
+    NoWarning,
+    ThrottlingImminent,
+    Throttling
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DeviceStats {
     pub battery_status: BatteryStatus,
     pub battery_level: f32,
     pub fps: f32,
     pub alt_tracking_confidence: f32,
+    pub temperature_warning_level: TemperatureWarningLevel,
+    pub temperature_level: f32,
+    pub temperature_trend: f32,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -192,9 +202,8 @@ impl PlayerAttribute {
                 PlayerAttribute::IsVisible(is_visible)
             }
             PlayerAttributeTag::DeviceStats => {
-                let status_byte = rdr.read_u8()?;
                 let device_stats = DeviceStats {
-                    battery_status: match status_byte {
+                    battery_status: match rdr.read_u8()? {
                         0 => BatteryStatus::Unknown,
                         1 => BatteryStatus::Charging,
                         2 => BatteryStatus::Discharging,
@@ -205,6 +214,14 @@ impl PlayerAttribute {
                     battery_level: rdr.read_f32::<LittleEndian>()?,
                     fps: rdr.read_f32::<LittleEndian>()?,
                     alt_tracking_confidence: rdr.read_f32::<LittleEndian>()?,
+                    temperature_warning_level: match rdr.read_u8()? {
+                        0 => TemperatureWarningLevel::NoWarning,
+                        1 => TemperatureWarningLevel::ThrottlingImminent,
+                        2 => TemperatureWarningLevel::Throttling,
+                        _ => bail!("unknown temperature waning level")
+                    },
+                    temperature_level: rdr.read_f32::<LittleEndian>()?,
+                    temperature_trend: rdr.read_f32::<LittleEndian>()?,
                 };
                 PlayerAttribute::DeviceStats(device_stats)
             }

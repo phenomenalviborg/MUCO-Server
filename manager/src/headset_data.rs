@@ -1,4 +1,4 @@
-use msgs::{color::Color, player_data::{BatteryStatus, DeviceStats, Language}};
+use msgs::{color::Color, player_data::{BatteryStatus, DeviceStats, Language, TemperatureWarningLevel}};
 
 use crate::{connection_status::ConnectionStatus, status::EnvCodeName, DEFAULT_SESSION_DURATION};
 
@@ -59,6 +59,9 @@ impl TempHeadsetData {
                 battery_level: 0.0,
                 fps: 0.0,
                 alt_tracking_confidence: 0.0,
+                temperature_warning_level: TemperatureWarningLevel::NoWarning,
+                temperature_level: 0.0,
+                temperature_trend: 0.0,
             },
             level: 0.0,
             audio_volume:0.5,
