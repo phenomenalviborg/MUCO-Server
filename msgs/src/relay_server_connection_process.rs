@@ -1,8 +1,9 @@
+use byteorder::{ByteOrder, LittleEndian};
 use tokio::{net::TcpStream, io::{AsyncReadExt, AsyncWriteExt}};
 
 use crate::{dequeue::dequeue_msg, discover_server::find_local_server_ip, network_version::NETWORK_VERSION_NUMBER};
 
-pub fn spawn_relay_server_connection_process(server_to_main: tokio::sync::mpsc::Sender<Vec<u8>>, reconnect: bool) -> tokio::sync::mpsc::Sender<Vec<u8>> {
+pub fn spawn_relay_server_connection_process(server_to_main: tokio::sync::mpsc::Sender<Vec<u8>>, reconnect: bool, device_id: u32) -> tokio::sync::mpsc::Sender<Vec<u8>> {
     let (main_to_server, mut server_from_main) = tokio::sync::mpsc::channel::<Vec<u8>>(100);
     tokio::spawn(async move {
         loop {
@@ -14,6 +15,10 @@ pub fn spawn_relay_server_connection_process(server_to_main: tokio::sync::mpsc::
 
             let mut stream = TcpStream::connect(addr).await.unwrap();
             stream.write(NETWORK_VERSION_NUMBER).await.unwrap();
+
+            let mut my_device_id = [0, 0, 0, 0];
+            LittleEndian::write_u32(&mut my_device_id, device_id);
+            stream.write(&my_device_id).await.unwrap();
 
             'connected: loop {
                 tokio::select! {
