@@ -11,6 +11,7 @@ pub enum ServerClientMsg<'a> {
     ClientConnected (u32),
     ClientDisconnected (u32),
     InterClient (u32, &'a[u8]),
+    RoomData (u32, &'a[u8]),
 }
 
 impl<'a> ServerClientMsg<'a> {
@@ -29,20 +30,25 @@ impl<'a> ServerClientMsg<'a> {
         let msg = match msg_type_index {
             0 => {
                 let session_id = rdr.read_u32::<LittleEndian>().unwrap();
-                ServerClientMsg::AssignSessionId(session_id)
+                ServerClientMsg::AssignSessionId (session_id)
             }
             1 => {
                 let session_id = rdr.read_u32::<LittleEndian>().unwrap();
-                ServerClientMsg::ClientConnected(session_id)
+                ServerClientMsg::ClientConnected (session_id)
             }
             2 => {
                 let session_id = rdr.read_u32::<LittleEndian>().unwrap();
-                ServerClientMsg::ClientDisconnected(session_id)
+                ServerClientMsg::ClientDisconnected (session_id)
             }
             3 => {
                 let sender = rdr.read_u32::<LittleEndian>().unwrap();
                 let bs = &input_buffer[begin+4..];
                 ServerClientMsg::InterClient (sender, bs)
+            }
+            4 => {
+                let key = rdr.read_u32::<LittleEndian>().unwrap();
+                let bs = &input_buffer[begin+4..];
+                ServerClientMsg::RoomData (key, bs)
             }
             type_index => {
                 bail!("unsupported msg type: {type_index}");
@@ -74,6 +80,12 @@ impl<'a> ServerClientMsg<'a> {
                 wtr.write_u32::<LittleEndian>(3).unwrap();
                 wtr.write_u32::<LittleEndian>(*sender as u32).unwrap();
                 wtr.write_all(bytes).unwrap();
+            }
+            ServerClientMsg::RoomData (room_id, data) => {
+                wtr.write_u32::<LittleEndian>(8 + data.len() as u32).unwrap();
+                wtr.write_u32::<LittleEndian>(4).unwrap();
+                wtr.write_u32::<LittleEndian>(*room_id).unwrap();
+                wtr.write_all(data).unwrap();
             }
         }
     }

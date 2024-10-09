@@ -28,6 +28,8 @@ pub enum ClientServerMsg<'a> {
     BinaryMessageTo (Address, &'a [u8]),
     SetClientType (ClientType),
     Kick (u32),
+    RoomData (u32, &'a [u8]),
+    RequestData (u32),
 }
 
 impl<'a> ClientServerMsg<'a> {
@@ -69,6 +71,15 @@ impl<'a> ClientServerMsg<'a> {
                 let session_id = rdr.read_u32::<LittleEndian>().unwrap();
                 ClientServerMsg::Kick (session_id)
             }
+            6 => {
+                let key = rdr.read_u32::<LittleEndian>().unwrap();
+                let bs = &input_buffer[begin+4..];
+                ClientServerMsg::RoomData(key, bs)
+            }
+            7 => {
+                let key = rdr.read_u32::<LittleEndian>().unwrap();
+                ClientServerMsg::RequestData(key)
+            }
             type_index => {
                 bail!("unsupported msg type: {type_index}");
             }
@@ -83,7 +94,7 @@ impl<'a> ClientServerMsg<'a> {
                 wtr.write_u32::<LittleEndian>(4).unwrap();
                 wtr.write_u32::<LittleEndian>(0).unwrap();
             }
-            ClientServerMsg::BinaryMessageTo(address, bytes) => {
+            ClientServerMsg::BinaryMessageTo (address, bytes) => {
                 match address {
                     Address::Client (session_id) => {
                         wtr.write_u32::<LittleEndian>(8 + bytes.len() as u32).unwrap();
@@ -103,15 +114,26 @@ impl<'a> ClientServerMsg<'a> {
                     }
                 }
             }
-            ClientServerMsg::SetClientType(client_type) => {
+            ClientServerMsg::SetClientType (client_type) => {
                 wtr.write_u32::<LittleEndian>(8).unwrap();
                 wtr.write_u32::<LittleEndian>(4).unwrap();
                 wtr.write_u32::<LittleEndian>(client_type.as_u32()).unwrap();
             }
-            ClientServerMsg::Kick(session_id) => {
+            ClientServerMsg::Kick (session_id) => {
                 wtr.write_u32::<LittleEndian>(8).unwrap();
                 wtr.write_u32::<LittleEndian>(5).unwrap();
                 wtr.write_u32::<LittleEndian>(*session_id).unwrap();
+            }
+            ClientServerMsg::RoomData (key, data) => {
+                wtr.write_u32::<LittleEndian>(8 + data.len() as u32).unwrap();
+                wtr.write_u32::<LittleEndian>(6).unwrap();
+                wtr.write_u32::<LittleEndian>(*key).unwrap();
+                wtr.write_all(data).unwrap();
+            }
+            ClientServerMsg::RequestData (key) => {
+                wtr.write_u32::<LittleEndian>(8).unwrap();
+                wtr.write_u32::<LittleEndian>(7).unwrap();
+                wtr.write_u32::<LittleEndian>(*key).unwrap();
             }
         }
     }
