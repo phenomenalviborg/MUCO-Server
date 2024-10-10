@@ -63,7 +63,7 @@ pub async fn process_player_attribute(player_attribute: PlayerAttribute, sender:
 
 pub async fn process_server_client_msg(msg: ServerClientMsg<'_>, context_ref: &MucoContextRef) {
     match msg {
-        ServerClientMsg::AssignSessionId(session_id) => {
+        ServerClientMsg::Hello { session_id, model: _ } => {
             println!("session id: {session_id}");
         }
         ServerClientMsg::ClientConnected(session_id) => {
@@ -113,7 +113,7 @@ pub async fn process_server_client_msg(msg: ServerClientMsg<'_>, context_ref: &M
 
             context_ref.write().await.get_or_request_unique_device_id(sender);
         }
-        ServerClientMsg::RoomData(_, _) => todo!(),
+        ServerClientMsg::DataNotify(_, _) => todo!(),
     }
 }
 

@@ -1,8 +1,9 @@
 use std::{env, fs::create_dir, net::{IpAddr, Ipv4Addr, SocketAddr}, sync::Arc};
 
-use client_db::{print_timestamp, SharedData};
+use client_db::print_timestamp;
 use discoverable_service::register_msdn;
 use local_ip_address::local_ip;
+use msgs::model::Model;
 use tokio::{net::TcpListener, sync::{broadcast, RwLock}};
 use crate::{broadcast_msg::BroadcastMsg, client_db::ClientDb};
 
@@ -50,7 +51,7 @@ async fn main() {
 
     let (tx, _) = broadcast::channel::<BroadcastMsg>(100);
 
-    let shared_data = Arc::new(RwLock::new(SharedData::new()));
+    let shared_data = Arc::new(RwLock::new(Model::new()));
 
     loop {
         let (socket, addr) = listener.accept().await.unwrap();
