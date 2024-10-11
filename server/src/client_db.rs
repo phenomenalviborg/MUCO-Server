@@ -255,7 +255,7 @@ pub async fn process_msg<'a>(msg: ClientServerMsg<'a>, session_id: u32, shared_d
             println!("hello from set data {key}");
             let mut lock = shared_data.write().await;
             lock.facts.insert(key, data.into());
-            let address = Address::All;
+            let address = Address::Other (session_id);
             let msg = ServerClientMsg::DataNotify (key, data);
             let mut output_buffer: Vec<u8> = Vec::new();
             msg.pack(&mut output_buffer);
