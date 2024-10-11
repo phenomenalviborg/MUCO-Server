@@ -252,7 +252,6 @@ pub async fn process_msg<'a>(msg: ClientServerMsg<'a>, session_id: u32, shared_d
         }
         ClientServerMsg::Kick (to_kick) => Some(BroadcastMsg::Kick (to_kick)),
         ClientServerMsg::SetData (key, data) => {
-            println!("hello from set data {key}");
             let mut lock = shared_data.write().await;
             lock.facts.insert(key, data.into());
             let address = Address::Other (session_id);
