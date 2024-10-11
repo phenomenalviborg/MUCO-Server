@@ -113,7 +113,7 @@ pub async fn process_server_client_msg(msg: ServerClientMsg<'_>, context_ref: &M
 
             context_ref.write().await.get_or_request_unique_device_id(sender);
         }
-        ServerClientMsg::DataNotify(_, _) => todo!(),
+        ServerClientMsg::DataNotify(_, _) => {}
     }
 }
 
