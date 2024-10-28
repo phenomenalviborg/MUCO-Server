@@ -2,7 +2,7 @@ use msgs::{inter_client_msg::InterClientMsg, player_data::{PlayerAttribute, Play
 
 use crate::{connection_status::ConnectionStatus, context::{get_or_request_device_id, MucoContextRef}, headset_data::HeadsetData};
 
-pub async fn process_player_attribute(player_attribute: PlayerAttribute, sender: u32, context_ref: &MucoContextRef) {
+pub async fn process_player_attribute(player_attribute: PlayerAttribute, sender: u16, context_ref: &MucoContextRef) {
     match player_attribute {
         PlayerAttribute::DeviceId(device_id) => {
             {
@@ -113,12 +113,13 @@ pub async fn process_server_client_msg(msg: ServerClientMsg<'_>, context_ref: &M
 
             context_ref.write().await.get_or_request_unique_device_id(sender);
         }
-        ServerClientMsg::DataNotify(_, _) => {}
+        ServerClientMsg::DataNotify {..} => {}
+        ServerClientMsg::DataOwner {..} => {},
     }
 }
 
 
-pub async fn process_data_buffer(data: Vec<u8>, sender: u32, context_ref: &MucoContextRef) {
+pub async fn process_data_buffer(data: Vec<u8>, sender: u16, context_ref: &MucoContextRef) {
     let mut rdr = &data[..];
     for tag in PlayerAttributeTag::ALL_TAGS {
         let decode_result = PlayerAttribute::decode_(&mut rdr, *tag);

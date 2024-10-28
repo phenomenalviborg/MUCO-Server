@@ -2,13 +2,13 @@ use std::{fs::File, io::Write, net::SocketAddr, sync::Arc, time::SystemTime};
 
 use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
 use chrono::Local;
-use msgs::{client_server_msg::{Address, ClientServerMsg}, client_type::ClientType, dequeue::dequeue_msg, model::Model, network_version::NETWORK_VERSION_NUMBER, server_client_msg::ServerClientMsg};
+use msgs::{client_server_msg::{Address, ClientServerMsg}, client_type::ClientType, dequeue::dequeue_msg, model::SharedData, network_version::NETWORK_VERSION_NUMBER, server_client_msg::ServerClientMsg};
 use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::TcpStream, sync::{broadcast, RwLock}};
 
 use crate::broadcast_msg::BroadcastMsg;
 
 pub struct ClientDb {
-    pub session_id_counter: u32,
+    pub session_id_counter: u16,
 }
 
 impl ClientDb {
@@ -18,7 +18,7 @@ impl ClientDb {
         }
     }
 
-    pub async fn new_client(&mut self, socket: TcpStream, addr: SocketAddr, tx: broadcast::Sender<BroadcastMsg>, log_folder_path: Option<&str>, server_start_time: SystemTime, shared_data: Arc<RwLock<Model>>) {
+    pub async fn new_client(&mut self, socket: TcpStream, addr: SocketAddr, tx: broadcast::Sender<BroadcastMsg>, log_folder_path: Option<&str>, server_start_time: SystemTime, shared_data: Arc<RwLock<SharedData>>) {
         socket.set_nodelay(true).unwrap();
         let session_id = self.session_id_counter;
         self.session_id_counter += 1;
@@ -34,7 +34,7 @@ impl ClientDb {
     }
 }
 
-pub fn print_message_preamble(session_id: u32, device_id: u32) {
+pub fn print_message_preamble(session_id: u16, device_id: u32) {
     print_message_preamble_no_device_id(session_id);
     print!("{device_id} ");
 }
@@ -44,13 +44,13 @@ pub fn print_timestamp() {
     print!("{} ", date.format("%Y-%m-%d %H:%M:%S"));
 }
 
-pub fn print_message_preamble_no_device_id(session_id: u32) {
+pub fn print_message_preamble_no_device_id(session_id: u16) {
     print_timestamp();
     print!("{session_id} ");
 }
 
 
-pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<BroadcastMsg>, session_id: u32, server_start_time: SystemTime, mut log_file: Option<File>, shared_data: Arc<RwLock<Model>>) {
+pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<BroadcastMsg>, session_id: u16, server_start_time: SystemTime, mut log_file: Option<File>, shared_data: Arc<RwLock<SharedData>>) {
     tokio::spawn(async move {
         let mut static_buffer = [0; 1024];
         let mut input_buffer = Vec::new();
@@ -93,7 +93,7 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
 
         {
             let mut output_buffer = Vec::new();
-            let model = shared_data.read().await.clone();
+            let model = shared_data.read().await.model.clone();
             let msg = ServerClientMsg::Hello {
                 session_id,
                 model,
@@ -204,7 +204,7 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
     });
 }
 
-pub async fn process_broadcast_msg(broadcast_msg: BroadcastMsg, session_id: u32, device_id: u32, socket: &mut TcpStream, should_disconnect: &mut bool) {
+pub async fn process_broadcast_msg(broadcast_msg: BroadcastMsg, session_id: u16, device_id: u32, socket: &mut TcpStream, should_disconnect: &mut bool) {
     match broadcast_msg {
         BroadcastMsg::Send(address, output_buffer) => {
             if address.includes(session_id) {
@@ -226,7 +226,7 @@ pub async fn process_broadcast_msg(broadcast_msg: BroadcastMsg, session_id: u32,
     }
 }
 
-pub async fn process_msg<'a>(msg: ClientServerMsg<'a>, session_id: u32, shared_data: &RwLock<Model>, should_disconnect: &mut bool) -> Option<BroadcastMsg> {
+pub async fn process_msg<'a>(msg: ClientServerMsg<'a>, session_id: u16, shared_data: &RwLock<SharedData>, should_disconnect: &mut bool) -> Option<BroadcastMsg> {
     match msg {
         ClientServerMsg::Disconnect => {
             *should_disconnect = true;
@@ -251,11 +251,25 @@ pub async fn process_msg<'a>(msg: ClientServerMsg<'a>, session_id: u32, shared_d
             }
         }
         ClientServerMsg::Kick (to_kick) => Some(BroadcastMsg::Kick (to_kick)),
-        ClientServerMsg::SetData (key, data) => {
+        ClientServerMsg::SetData { room, component_type, creator_id, index, data } => {
             let mut lock = shared_data.write().await;
-            lock.facts.insert(key, data.into());
+            if let Some(data_owner) = lock.data_owners.get(&(room, creator_id, index)) {
+                if *data_owner != session_id as u16 {
+                    return None;
+                }
+            }
+            lock.model.facts.insert((room, component_type, creator_id, index), data.into());
             let address = Address::Other (session_id);
-            let msg = ServerClientMsg::DataNotify (key, data);
+            let msg = ServerClientMsg::DataNotify { room, component_type, creator_id, index, data };
+            let mut output_buffer: Vec<u8> = Vec::new();
+            msg.pack(&mut output_buffer);
+            Some(BroadcastMsg::Send (address, output_buffer))
+        }
+        ClientServerMsg::ClaimData { room, creator_id, index } => {
+            let mut lock = shared_data.write().await;
+            lock.data_owners.insert((room, creator_id, index), session_id as u16);
+            let address = Address::Other (session_id);
+            let msg = ServerClientMsg::DataOwner { room, creator_id, index, owner_id: session_id as u16 };
             let mut output_buffer: Vec<u8> = Vec::new();
             msg.pack(&mut output_buffer);
             Some(BroadcastMsg::Send (address, output_buffer))

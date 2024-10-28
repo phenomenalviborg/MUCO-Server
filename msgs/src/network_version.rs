@@ -1,1 +1,1 @@
-pub const NETWORK_VERSION_NUMBER: &[u8] = &[0, 0, 5];
+pub const NETWORK_VERSION_NUMBER: &[u8] = &[0, 0, 6];
