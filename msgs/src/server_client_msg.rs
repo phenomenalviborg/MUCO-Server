@@ -134,14 +134,14 @@ impl<'a> ServerClientMsg<'a> {
                 }
             }
             ServerClientMsg::ClientConnected (id) => {
-                wtr.write_u32::<LittleEndian>(8).unwrap();
+                wtr.write_u32::<LittleEndian>(6).unwrap();
                 wtr.write_u32::<LittleEndian>(1).unwrap();
-                wtr.write_u32::<LittleEndian>(*id as u32).unwrap();
+                wtr.write_u16::<LittleEndian>(*id).unwrap();
             }
             ServerClientMsg::ClientDisconnected (id) => {
-                wtr.write_u32::<LittleEndian>(8).unwrap();
+                wtr.write_u32::<LittleEndian>(6).unwrap();
                 wtr.write_u32::<LittleEndian>(2).unwrap();
-                wtr.write_u32::<LittleEndian>(*id as u32).unwrap();
+                wtr.write_u16::<LittleEndian>(*id).unwrap();
             }
             ServerClientMsg::InterClient (sender, bytes) => {
                 wtr.write_u32::<LittleEndian>(6 + bytes.len() as u32).unwrap();
