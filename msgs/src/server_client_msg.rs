@@ -72,7 +72,7 @@ impl<'a> ServerClientMsg<'a> {
             }
             3 => {
                 let sender = rdr.read_u16::<LittleEndian>().unwrap();
-                let bs = &input_buffer[begin+4..];
+                let bs = &input_buffer[begin+2..];
                 ServerClientMsg::InterClient (sender, bs)
             }
             4 => {
@@ -144,9 +144,9 @@ impl<'a> ServerClientMsg<'a> {
                 wtr.write_u32::<LittleEndian>(*id as u32).unwrap();
             }
             ServerClientMsg::InterClient (sender, bytes) => {
-                wtr.write_u32::<LittleEndian>(8 + bytes.len() as u32).unwrap();
+                wtr.write_u32::<LittleEndian>(6 + bytes.len() as u32).unwrap();
                 wtr.write_u32::<LittleEndian>(3).unwrap();
-                wtr.write_u32::<LittleEndian>(*sender as u32).unwrap();
+                wtr.write_u16::<LittleEndian>(*sender).unwrap();
                 wtr.write_all(bytes).unwrap();
             }
             ServerClientMsg::DataNotify { room, component_type, creator_id, index, data } => {

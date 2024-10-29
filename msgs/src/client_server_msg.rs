@@ -69,7 +69,7 @@ impl<'a> ClientServerMsg<'a> {
             }
             3 => {
                 let session_id = rdr.read_u16::<LittleEndian>().unwrap();
-                let bs = &input_buffer[begin+4..];
+                let bs = &input_buffer[begin+2..];
                 ClientServerMsg::BinaryMessageTo (Address::Client(session_id), bs)
             }
             4 => {
