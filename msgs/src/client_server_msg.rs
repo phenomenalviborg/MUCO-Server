@@ -30,7 +30,6 @@ pub enum ClientServerMsg<'a> {
     Kick (u16),
     SetData {
         room: u8,
-        component_type: u8,
         creator_id: u16,
         index: u16,
         data: &'a[u8]
@@ -83,13 +82,11 @@ impl<'a> ClientServerMsg<'a> {
             }
             6 => {
                 let room = rdr.read_u8().unwrap();
-                let component_type = rdr.read_u8().unwrap();
                 let creator_id = rdr.read_u16::<LittleEndian>().unwrap();
                 let index = rdr.read_u16::<LittleEndian>().unwrap();
-                let data = &input_buffer[begin+6..];
+                let data = &input_buffer[begin+5..];
                 ClientServerMsg::SetData {
                     room,
-                    component_type,
                     creator_id,
                     index,
                     data,
@@ -149,11 +146,10 @@ impl<'a> ClientServerMsg<'a> {
                 wtr.write_u32::<LittleEndian>(5).unwrap();
                 wtr.write_u16::<LittleEndian>(*session_id).unwrap();
             }
-            ClientServerMsg::SetData { room, component_type, creator_id, index, data } => {
-                wtr.write_u32::<LittleEndian>(10 + data.len() as u32).unwrap();
+            ClientServerMsg::SetData { room, creator_id, index, data } => {
+                wtr.write_u32::<LittleEndian>(9 + data.len() as u32).unwrap();
                 wtr.write_u32::<LittleEndian>(6).unwrap();
                 wtr.write_u8(*room).unwrap();
-                wtr.write_u8(*component_type).unwrap();
                 wtr.write_u16::<LittleEndian>(*creator_id).unwrap();
                 wtr.write_u16::<LittleEndian>(*index).unwrap();
                 wtr.write_all(data).unwrap();

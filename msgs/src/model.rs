@@ -16,7 +16,7 @@ impl SharedData {
 
 #[derive(Debug, Clone)]
 pub struct Model {
-    pub facts: HashMap<(u8, u8, u16, u16), Box<[u8]>>,
+    pub facts: HashMap<(u8, u16, u16), Box<[u8]>>,
 }
 
 impl Model {

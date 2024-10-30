@@ -251,16 +251,16 @@ pub async fn process_msg<'a>(msg: ClientServerMsg<'a>, session_id: u16, shared_d
             }
         }
         ClientServerMsg::Kick (to_kick) => Some(BroadcastMsg::Kick (to_kick)),
-        ClientServerMsg::SetData { room, component_type, creator_id, index, data } => {
+        ClientServerMsg::SetData { room, creator_id, index, data } => {
             let mut lock = shared_data.write().await;
             if let Some(data_owner) = lock.data_owners.get(&(room, creator_id, index)) {
                 if *data_owner != session_id as u16 {
                     return None;
                 }
             }
-            lock.model.facts.insert((room, component_type, creator_id, index), data.into());
+            lock.model.facts.insert((room, creator_id, index), data.into());
             let address = Address::Other (session_id);
-            let msg = ServerClientMsg::DataNotify { room, component_type, creator_id, index, data };
+            let msg = ServerClientMsg::DataNotify { room, creator_id, index, data };
             let mut output_buffer: Vec<u8> = Vec::new();
             msg.pack(&mut output_buffer);
             Some(BroadcastMsg::Send (address, output_buffer))
