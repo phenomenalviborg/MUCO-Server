@@ -84,7 +84,6 @@ pub async fn process_server_client_msg(msg: ServerClientMsg<'_>, context_ref: &M
             };
 
             match inter_client_msg {
-                InterClientMsg::_Interaction => {}
                 InterClientMsg::PlayerData (player_data_msg) => {
                     match player_data_msg {
                         PlayerDataMsg::Notify (player_data) => {
