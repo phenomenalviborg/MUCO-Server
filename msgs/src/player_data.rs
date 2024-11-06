@@ -39,6 +39,18 @@ pub enum BatteryStatus {
     Full,
 }
 
+#[derive(Debug, Copy, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct EnvTrans {
+    pub translation: [f32; 3],
+    pub rotation: [f32; 3],
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct EnvData {
+    pub code: Box<str>,
+    pub transform: EnvTrans,
+}
+
 #[derive(Debug)]
 pub enum PlayerAttribute {
     DeviceId (u32),
@@ -47,7 +59,7 @@ pub enum PlayerAttribute {
     Level (f32),
     Hands,
     Language (Language),
-    EnvironmentCode (Box<str>),
+    EnvironmentData (Box<str>, EnvData),
     DevMode (bool),
     IsVisible (bool),
     DeviceStats (DeviceStats),
@@ -120,6 +132,19 @@ impl PlayerAttributeTag {
     }
 }
 
+fn read_boxed_str(rdr: &mut impl Read) -> Box<str> {
+    let len = rdr.read_u32::<LittleEndian>().unwrap();
+    let mut buf = vec![0u8; len as usize];
+    rdr.read(&mut buf).unwrap();
+    let s: String = String::from_utf8(buf).unwrap().into();
+    s.into_boxed_str()
+}
+
+fn write_str(s: &str, wtr: &mut impl Write) {
+    wtr.write_u32::<LittleEndian>(s.len() as u32).unwrap();
+    wtr.write_all(s.as_bytes()).unwrap();
+}
+
 impl PlayerAttribute {
     pub const TRANS_SIZE: usize = 28;
     pub const LEVEL_SIZE: usize = 4;
@@ -179,11 +204,23 @@ impl PlayerAttribute {
                 PlayerAttribute::Language(language)
             }
             PlayerAttributeTag::EnvironmentCode => {
-                let len = rdr.read_u32::<LittleEndian>().unwrap();
-                let mut buf = vec![0u8; len as usize];
-                rdr.read(&mut buf).unwrap();
-                let code = String::from_utf8(buf).unwrap().into();
-                PlayerAttribute::EnvironmentCode(code)
+                let name = read_boxed_str(rdr);
+                let data = EnvData {
+                    code: read_boxed_str(rdr),
+                    transform: EnvTrans {
+                        translation: [
+                            rdr.read_f32::<LittleEndian>()?,
+                            rdr.read_f32::<LittleEndian>()?,
+                            rdr.read_f32::<LittleEndian>()?,
+                        ],
+                        rotation: [
+                            rdr.read_f32::<LittleEndian>()?,
+                            rdr.read_f32::<LittleEndian>()?,
+                            rdr.read_f32::<LittleEndian>()?,
+                        ]
+                    }
+                };
+                PlayerAttribute::EnvironmentData(name, data)
             }
             PlayerAttributeTag::DevMode => {
                 let x = rdr.read_u8().unwrap();
@@ -259,10 +296,16 @@ impl PlayerAttribute {
                 };
                 wtr.write_u32::<LittleEndian>(language_index).unwrap();
             }
-            PlayerAttribute::EnvironmentCode(code) => {
+            PlayerAttribute::EnvironmentData(name, data) => {
                 wtr.write_u32::<LittleEndian>(6).unwrap();
-                wtr.write_u32::<LittleEndian>(code.len() as u32).unwrap();
-                wtr.write_all(code.as_bytes()).unwrap();
+                write_str(name, wtr);
+                write_str(&data.code, wtr);
+                wtr.write_f32::<LittleEndian>(data.transform.translation[0]).unwrap();
+                wtr.write_f32::<LittleEndian>(data.transform.translation[1]).unwrap();
+                wtr.write_f32::<LittleEndian>(data.transform.translation[2]).unwrap();
+                wtr.write_f32::<LittleEndian>(data.transform.rotation[0]).unwrap();
+                wtr.write_f32::<LittleEndian>(data.transform.rotation[1]).unwrap();
+                wtr.write_f32::<LittleEndian>(data.transform.rotation[2]).unwrap();
             }
             PlayerAttribute::DevMode(is_on) => {
                 wtr.write_u32::<LittleEndian>(7).unwrap();

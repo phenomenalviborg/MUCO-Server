@@ -24,12 +24,12 @@ pub async fn process_player_attribute(player_attribute: PlayerAttribute, sender:
             let color = headset.persistent.color;
             let language = headset.persistent.language;
             let environment_name = headset.persistent.environment_name.clone();
-            let environment_code = context.get_environment_code_string(&environment_name);
+            let environment_data = context.get_environment_data(&environment_name);
             context.connection_id_to_player.insert(sender, device_id);
             context.status_generation += 1;
             context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Color (color)))).await;
             context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Language (language)))).await;
-            context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::EnvironmentCode (environment_code.to_owned())))).await;
+            context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::EnvironmentData (environment_name, environment_data)))).await;
         }
         _ => {
             if let Some(device_id) = get_or_request_device_id(sender, context_ref).await {
