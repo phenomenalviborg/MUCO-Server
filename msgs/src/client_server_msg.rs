@@ -7,13 +7,13 @@ use crate::{client_type::ClientType, dequeue::dequeue_msg};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Address {
-    Client (u32),
+    Client (u16),
     All,
-    Other (u32),
+    Other (u16),
 }
 
 impl Address {
-    pub fn includes(self, connection_id: u32) -> bool {
+    pub fn includes(self, connection_id: u16) -> bool {
         match self {
             Address::Client (addressed) => connection_id == addressed,
             Address::All => true,
@@ -27,18 +27,28 @@ pub enum ClientServerMsg<'a> {
     Disconnect,
     BinaryMessageTo (Address, &'a [u8]),
     SetClientType (ClientType),
-    Kick (u32),
-    SetData (u64, &'a [u8]),
+    Kick (u16),
+    SetData {
+        room: u8,
+        creator_id: u16,
+        index: u16,
+        data: &'a[u8]
+    },
+    ClaimData {
+        room: u8,
+        creator_id: u16,
+        index: u16,
+    }
 }
 
 impl<'a> ClientServerMsg<'a> {
-    pub fn dequeue_and_decode(input_buffer: &[u8], sender: u32) -> Option<(usize, anyhow::Result<ClientServerMsg>)> {
+    pub fn dequeue_and_decode(input_buffer: &[u8], sender: u16) -> Option<(usize, anyhow::Result<ClientServerMsg>)> {
         let Some((begin, end)) = dequeue_msg(input_buffer) else { return None };
         let msg = Self::decode(&input_buffer[begin..end], sender);
         Some((end, msg))
     }
 
-    pub fn decode(input_buffer: &[u8], sender: u32) -> anyhow::Result<ClientServerMsg> {
+    pub fn decode(input_buffer: &[u8], sender: u16) -> anyhow::Result<ClientServerMsg> {
         let mut rdr = Cursor::new(&input_buffer);
         let msg_type_index = rdr.read_u32::<LittleEndian>().unwrap();
 
@@ -57,8 +67,8 @@ impl<'a> ClientServerMsg<'a> {
                 ClientServerMsg::BinaryMessageTo (Address::Other (sender), bs)
             }
             3 => {
-                let session_id = rdr.read_u32::<LittleEndian>().unwrap();
-                let bs = &input_buffer[begin+4..];
+                let session_id = rdr.read_u16::<LittleEndian>().unwrap();
+                let bs = &input_buffer[begin+2..];
                 ClientServerMsg::BinaryMessageTo (Address::Client(session_id), bs)
             }
             4 => {
@@ -67,13 +77,30 @@ impl<'a> ClientServerMsg<'a> {
                 ClientServerMsg::SetClientType (client_type)
             }
             5 => {
-                let session_id = rdr.read_u32::<LittleEndian>().unwrap();
+                let session_id = rdr.read_u16::<LittleEndian>().unwrap();
                 ClientServerMsg::Kick (session_id)
             }
             6 => {
-                let key = rdr.read_u64::<LittleEndian>().unwrap();
-                let bs = &input_buffer[begin+8..];
-                ClientServerMsg::SetData(key, bs)
+                let room = rdr.read_u8().unwrap();
+                let creator_id = rdr.read_u16::<LittleEndian>().unwrap();
+                let index = rdr.read_u16::<LittleEndian>().unwrap();
+                let data = &input_buffer[begin+5..];
+                ClientServerMsg::SetData {
+                    room,
+                    creator_id,
+                    index,
+                    data,
+                }
+            }
+            7 => {
+                let room = rdr.read_u8().unwrap();
+                let creator_id = rdr.read_u16::<LittleEndian>().unwrap();
+                let index = rdr.read_u16::<LittleEndian>().unwrap();
+                ClientServerMsg::ClaimData {
+                    room,
+                    creator_id,
+                    index,
+                }
             }
             type_index => {
                 bail!("unsupported msg type: {type_index}");
@@ -92,9 +119,9 @@ impl<'a> ClientServerMsg<'a> {
             ClientServerMsg::BinaryMessageTo (address, bytes) => {
                 match address {
                     Address::Client (session_id) => {
-                        wtr.write_u32::<LittleEndian>(8 + bytes.len() as u32).unwrap();
+                        wtr.write_u32::<LittleEndian>(6 + bytes.len() as u32).unwrap();
                         wtr.write_u32::<LittleEndian>(3).unwrap();
-                        wtr.write_u32::<LittleEndian>(*session_id).unwrap();
+                        wtr.write_u16::<LittleEndian>(*session_id).unwrap();
                         wtr.write_all(bytes).unwrap();
                     }
                     Address::All => {
@@ -115,15 +142,24 @@ impl<'a> ClientServerMsg<'a> {
                 wtr.write_u32::<LittleEndian>(client_type.as_u32()).unwrap();
             }
             ClientServerMsg::Kick (session_id) => {
-                wtr.write_u32::<LittleEndian>(8).unwrap();
-                wtr.write_u32::<LittleEndian>(5).unwrap();
-                wtr.write_u32::<LittleEndian>(*session_id).unwrap();
-            }
-            ClientServerMsg::SetData (key, data) => {
-                wtr.write_u32::<LittleEndian>(12 + data.len() as u32).unwrap();
                 wtr.write_u32::<LittleEndian>(6).unwrap();
-                wtr.write_u64::<LittleEndian>(*key).unwrap();
+                wtr.write_u32::<LittleEndian>(5).unwrap();
+                wtr.write_u16::<LittleEndian>(*session_id).unwrap();
+            }
+            ClientServerMsg::SetData { room, creator_id, index, data } => {
+                wtr.write_u32::<LittleEndian>(9 + data.len() as u32).unwrap();
+                wtr.write_u32::<LittleEndian>(6).unwrap();
+                wtr.write_u8(*room).unwrap();
+                wtr.write_u16::<LittleEndian>(*creator_id).unwrap();
+                wtr.write_u16::<LittleEndian>(*index).unwrap();
                 wtr.write_all(data).unwrap();
+            }
+            ClientServerMsg::ClaimData { room, creator_id, index } => {
+                wtr.write_u32::<LittleEndian>(9).unwrap();
+                wtr.write_u32::<LittleEndian>(7).unwrap();
+                wtr.write_u8(*room).unwrap();
+                wtr.write_u16::<LittleEndian>(*creator_id).unwrap();
+                wtr.write_u16::<LittleEndian>(*index).unwrap();
             }
         }
     }

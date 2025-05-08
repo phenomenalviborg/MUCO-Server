@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use anyhow::Context;
-use msgs::{client_server_msg::{Address, ClientServerMsg}, inter_client_msg::InterClientMsg, player_data::PlayerAttributeTag, player_data_msg::PlayerDataMsg};
+use msgs::{client_server_msg::{Address, ClientServerMsg}, inter_client_msg::InterClientMsg, player_data::{EnvData, EnvTrans, PlayerAttributeTag}, player_data_msg::PlayerDataMsg};
 use tokio::sync::{RwLock, mpsc};
 use warp::filters::ws::Message;
 
@@ -10,10 +10,10 @@ use crate::{connection_status::ConnectionStatus, headset_data::{HeadsetData, DEF
 pub struct MucoContext {
     pub to_relay_server_process: tokio::sync::mpsc::Sender<Vec<u8>>,
     pub to_frontend_senders: HashMap<String, mpsc::UnboundedSender<std::result::Result<Message, warp::Error>>>,
-    pub connection_id_to_player: HashMap<u32, DeviceId>,
+    pub connection_id_to_player: HashMap<u16, DeviceId>,
     pub status: Status,
     pub status_generation: usize,
-    pub unknown_connections: Vec<u32>,
+    pub unknown_connections: Vec<u16>,
 }
 
 pub type MucoContextRef = Arc<RwLock<MucoContext>>;
@@ -24,12 +24,15 @@ impl MucoContext {
         Ok(headset)
     }
 
-    pub fn get_environment_code_string(&self, name: &str) -> Box<str> {
-        match self.status.environment_codes.get(name) {
+    pub fn get_environment_data(&self, name: &str) -> EnvData {
+        match self.status.environment_data.get(name) {
             Some(code) => code.to_owned(),
             None => {
                 println!("could not find environment code {name}, returning default");
-                DEFAULT_ENVIRONMENT_CODE.into()
+                EnvData {
+                    code: DEFAULT_ENVIRONMENT_CODE.into(),
+                    transform: EnvTrans::default(),
+                }
             },
         }
     }
@@ -42,7 +45,7 @@ impl MucoContext {
         }
     }
 
-    pub async fn disconnect(&mut self, connection_id: u32) {
+    pub async fn disconnect(&mut self, connection_id: u16) {
         let Some(device_id) = self.connection_id_to_player.get(&connection_id) else { return };
         let Some(headset) = self.status.headsets.get_mut(device_id) else { return };
         headset.temp.connection_status = ConnectionStatus::Disconnected;
@@ -50,7 +53,7 @@ impl MucoContext {
         self.status_generation += 1;
     }
 
-    pub async fn send_msg_to_player(&mut self, connection_id: u32, inter_client_msg: InterClientMsg) {
+    pub async fn send_msg_to_player(&mut self, connection_id: u16, inter_client_msg: InterClientMsg) {
         let mut inter_client_msg_bytes = Vec::new();
         inter_client_msg.pack(&mut inter_client_msg_bytes);
         let client_server_msg = ClientServerMsg::BinaryMessageTo (Address::Client(connection_id), &inter_client_msg_bytes);
@@ -59,7 +62,7 @@ impl MucoContext {
         self.to_relay_server_process.send(client_server_msg_bytes).await.unwrap();
     }
     
-    pub fn get_or_request_unique_device_id(&mut self, connection_id: u32) -> Option<u32> {
+    pub fn get_or_request_unique_device_id(&mut self, connection_id: u16) -> Option<u32> {
         if let Some(unique_device_id) = self.connection_id_to_player.get(&connection_id) {
             return Some(*unique_device_id)
         }
@@ -77,7 +80,7 @@ impl MucoContext {
     }
 }
 
-pub async fn get_or_request_device_id(connection_id: u32, context_ref: &MucoContextRef) -> Option<u32> {
+pub async fn get_or_request_device_id(connection_id: u16, context_ref: &MucoContextRef) -> Option<u32> {
     {
         let read = context_ref.read().await;
         if let Some(device_id) = read.connection_id_to_player.get(&connection_id) {

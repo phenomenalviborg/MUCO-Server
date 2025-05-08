@@ -2,7 +2,7 @@ use msgs::{inter_client_msg::InterClientMsg, player_data::{PlayerAttribute, Play
 
 use crate::{connection_status::ConnectionStatus, context::{get_or_request_device_id, MucoContextRef}, headset_data::HeadsetData};
 
-pub async fn process_player_attribute(player_attribute: PlayerAttribute, sender: u32, context_ref: &MucoContextRef) {
+pub async fn process_player_attribute(player_attribute: PlayerAttribute, sender: u16, context_ref: &MucoContextRef) {
     match player_attribute {
         PlayerAttribute::DeviceId(device_id) => {
             {
@@ -24,12 +24,12 @@ pub async fn process_player_attribute(player_attribute: PlayerAttribute, sender:
             let color = headset.persistent.color;
             let language = headset.persistent.language;
             let environment_name = headset.persistent.environment_name.clone();
-            let environment_code = context.get_environment_code_string(&environment_name);
+            let environment_data = context.get_environment_data(&environment_name);
             context.connection_id_to_player.insert(sender, device_id);
             context.status_generation += 1;
             context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Color (color)))).await;
             context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Language (language)))).await;
-            context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::EnvironmentCode (environment_code.to_owned())))).await;
+            context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::EnvironmentData (environment_name, environment_data)))).await;
         }
         _ => {
             if let Some(device_id) = get_or_request_device_id(sender, context_ref).await {
@@ -84,7 +84,6 @@ pub async fn process_server_client_msg(msg: ServerClientMsg<'_>, context_ref: &M
             };
 
             match inter_client_msg {
-                InterClientMsg::_Interaction => {}
                 InterClientMsg::PlayerData (player_data_msg) => {
                     match player_data_msg {
                         PlayerDataMsg::Notify (player_data) => {
@@ -113,12 +112,13 @@ pub async fn process_server_client_msg(msg: ServerClientMsg<'_>, context_ref: &M
 
             context_ref.write().await.get_or_request_unique_device_id(sender);
         }
-        ServerClientMsg::DataNotify(_, _) => {}
+        ServerClientMsg::DataNotify {..} => {}
+        ServerClientMsg::DataOwner {..} => {},
     }
 }
 
 
-pub async fn process_data_buffer(data: Vec<u8>, sender: u32, context_ref: &MucoContextRef) {
+pub async fn process_data_buffer(data: Vec<u8>, sender: u16, context_ref: &MucoContextRef) {
     let mut rdr = &data[..];
     for tag in PlayerAttributeTag::ALL_TAGS {
         let decode_result = PlayerAttribute::decode_(&mut rdr, *tag);

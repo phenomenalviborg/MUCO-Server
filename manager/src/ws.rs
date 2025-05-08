@@ -1,9 +1,9 @@
-use std::time::{UNIX_EPOCH, SystemTime};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{connection_status::ConnectionStatus, context::MucoContextRef, headset_data::SessionState, status::{DeviceId, EnvCodeName}, DEFAULT_SESSION_DURATION};
 use anyhow::Context;
 use futures::{FutureExt, StreamExt};
-use msgs::{client_server_msg::ClientServerMsg, color::Color, inter_client_msg::InterClientMsg, player_data::{Language, PlayerAttribute}, player_data_msg::PlayerDataMsg};
+use msgs::{client_server_msg::ClientServerMsg, color::Color, inter_client_msg::InterClientMsg, player_data::{EnvData, Language, PlayerAttribute}, player_data_msg::PlayerDataMsg};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use uuid::Uuid;
@@ -62,7 +62,7 @@ pub enum ClientMsg {
     Pause(DeviceId),
     Unpause(DeviceId),
     SetEnvironment(DeviceId, EnvCodeName),
-    SetEnvironmentCode(EnvCodeName, Box<str>),
+    SetEnvironmentData(EnvCodeName, EnvData),
     RemoveEnvironment(EnvCodeName),
     RenameEnvironment(EnvCodeName, EnvCodeName),
     SetDevMode(DeviceId, bool),
@@ -195,29 +195,29 @@ pub async fn process_client_msg(client_msg: ClientMsg, context_ref: &MucoContext
         }
         SetEnvironment(unique_device_id, name) => {
             let mut context = context_ref.write().await;
-            let code = context.status.environment_codes.get(&name).context("could not find environment")?.to_owned();
+            let env_data = context.status.environment_data.get(&name).context("could not find environment")?.to_owned();
             let headset = context.status.headsets.get_mut(&unique_device_id).context("could not find headset with id {unique_device_id}")?;
-            headset.persistent.environment_name = name;
+            headset.persistent.environment_name = name.clone();
             if let ConnectionStatus::Connected(session_id) = headset.temp.connection_status {
-                let msg = InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::EnvironmentCode(code)));
+                let msg = InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::EnvironmentData(name, env_data)));
                 context.send_msg_to_player(session_id, msg).await;
             }
             UpdateClients
         }
-        SetEnvironmentCode(name, code) => {
+        SetEnvironmentData(env_name, data) => {
             let mut context = context_ref.write().await;
-            let environment_codes = &mut context.status.environment_codes;
-            environment_codes.insert(name.clone(), code.clone());
+            let environment_codes = &mut context.status.environment_data;
+            environment_codes.insert(env_name.clone(), data.clone());
             let mut headsets_to_update = Vec::new();
             for (headset_name, headset) in &context.status.headsets {
-                if headset.persistent.environment_name == name {
+                if headset.persistent.environment_name == env_name {
                     headsets_to_update.push(headset_name.clone());
                 }
             }
-            for name in headsets_to_update {
-                let headset = context.get_headset_mut(name).unwrap();
+            for headset_name in headsets_to_update {
+                let headset = context.get_headset_mut(headset_name).unwrap();
                 if let ConnectionStatus::Connected(session_id) = headset.temp.connection_status {
-                    let msg = InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::EnvironmentCode(code.clone())));
+                    let msg = InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::EnvironmentData(env_name.clone(), data.clone())));
                     context.send_msg_to_player(session_id, msg).await;
                 }
             }
@@ -225,13 +225,13 @@ pub async fn process_client_msg(client_msg: ClientMsg, context_ref: &MucoContext
         }
         RemoveEnvironment(name) => {
             let mut context = context_ref.write().await;
-            let environment_codes = &mut context.status.environment_codes;
+            let environment_codes = &mut context.status.environment_data;
             environment_codes.remove(&name);
             UpdateClients
         }
         RenameEnvironment(old_name, new_name) => {
             let mut context = context_ref.write().await;
-            let environment_codes = &mut context.status.environment_codes;
+            let environment_codes = &mut context.status.environment_data;
             let code = environment_codes.get(&old_name).unwrap();
             environment_codes.insert(new_name.clone(), code.clone());
             environment_codes.remove(&old_name);
