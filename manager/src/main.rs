@@ -66,7 +66,7 @@ async fn main() {
         .or(ws_route)
         .with(warp::cors().allow_any_origin());
 
-    let port = 8000;
+    let port = 8080;
     let addr = SocketAddr::new(IpAddr::from(Ipv4Addr::UNSPECIFIED), port);
 
     tokio::spawn(async move {
