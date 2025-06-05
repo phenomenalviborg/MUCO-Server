@@ -1,0 +1,14 @@
+{
+    # Global options
+    acme_ca https://acme-v02.api.letsencrypt.org/directory
+}
+
+backend.phenomenal.dk {
+    # Reverse proxy to local Rust manager
+    reverse_proxy localhost:8080
+    
+    # Force HTTP-01 challenge by disabling TLS-ALPN-01
+    tls {
+        protocols tls1.2 tls1.3
+    }
+}
