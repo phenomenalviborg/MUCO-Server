@@ -66,11 +66,27 @@ async fn main() {
         .or(ws_route)
         .with(warp::cors().allow_any_origin());
 
-    let port = 8080;
+    let port = 9000;
     let addr = SocketAddr::new(IpAddr::from(Ipv4Addr::UNSPECIFIED), port);
 
     tokio::spawn(async move {
-        warp::serve(routes).run(addr).await;
+        // Try to load TLS certificates, fallback to HTTP if not available
+        let cert_path = "cert.pem";
+        let key_path = "key.pem";
+        
+        if std::path::Path::new(cert_path).exists() && std::path::Path::new(key_path).exists() {
+            println!("Starting HTTPS server with TLS certificates");
+            warp::serve(routes)
+                .tls()
+                .cert_path(cert_path)
+                .key_path(key_path)
+                .run(addr)
+                .await;
+        } else {
+            println!("No TLS certificates found, starting HTTP server");
+            println!("To enable HTTPS, place cert.pem and key.pem in the current directory");
+            warp::serve(routes).run(addr).await;
+        }
     });
 
     update_clients_periodically(context_ref.clone()).await;

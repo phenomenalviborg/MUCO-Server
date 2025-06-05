@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 tokio = { workspace = true, features = ["macros", "sync", "rt-multi-thread"] }
 tokio-stream = { workspace = true }
-warp = { workspace = true }
+warp = { workspace = true, features = ["tls"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 futures = { workspace = true }
