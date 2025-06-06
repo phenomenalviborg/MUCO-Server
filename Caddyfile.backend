@@ -3,10 +3,14 @@
     auto_https off
 }
 
+# HTTPS version on port 9443 (proxies to manager on 9080)
 :9443 {
     reverse_proxy localhost:9080
-    tls internal
-
+    
+    tls internal {
+        protocols tls1.2 tls1.3
+    }
+    
     log {
         output stdout
         format console
