@@ -57,22 +57,23 @@ async fn main() {
 
     console_input_thread(context_ref.clone());
 
-    let health_route = warp::path!("health").and_then(handler::health_handler);
-    
-    let trust_route = warp::path!("trust").and_then(handler::trust_handler);
+    // API routes with /api prefix for proxy
+    let api_routes = warp::path("api").and(
+        warp::path("health").and_then(handler::health_handler)
+            .or(warp::path("ws")
+                .and(warp::ws())
+                .and(with_context(context_ref.clone()))
+                .and_then(handler::ws_handler))
+    );
 
-    let ws_route = warp::path("ws")
-        .and(warp::ws())
-        .and(with_context(context_ref.clone()))
-        .and_then(handler::ws_handler);
-
-    let routes = health_route
-        .or(trust_route)
-        .or(ws_route)
+    let routes = api_routes
         .with(warp::cors().allow_any_origin());
 
-    // Setup and start both HTTP and HTTPS servers with connection info
-    connection_info::setup_and_start_servers(routes).await;
+    // Start simple HTTP server on port 9080
+    println!("🚀 Starting MUCO Manager backend on http://0.0.0.0:9080");
+    warp::serve(routes)
+        .run(([0, 0, 0, 0], 9080))
+        .await;
 
     update_clients_periodically(context_ref.clone()).await;
 
