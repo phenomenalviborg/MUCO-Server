@@ -1,14 +1,14 @@
 {
-      admin off
-      auto_https off
-  }
+    admin off
+    auto_https off
+}
 
-  :9443 {
-      reverse_proxy localhost:9080
-      tls internal
+:9443 {
+    reverse_proxy localhost:9080
+    tls internal
 
-      log {
-          output stdout
-          format console
-      }
-  }
+    log {
+        output stdout
+        format console
+    }
+}
