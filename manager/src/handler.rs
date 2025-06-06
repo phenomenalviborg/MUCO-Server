@@ -55,22 +55,20 @@ pub async fn trust_handler() -> Result<impl Reply> {
                 const ws = new WebSocket(wsUrl);
                 ws.onopen = function() {
                     console.log('✅ WebSocket connection successful!');
-                    status.textContent = 'Connected! Notifying parent...';
+                    status.textContent = 'Connected! Closing...';
                     ws.close();
                     
-                    // Send message to parent window
-                    if (window.opener) {
-                        console.log('Sending trust-complete message to parent');
-                        window.opener.postMessage({ type: 'trust-complete' }, '*');
-                        status.textContent = 'Connected! Closing in 2 seconds...';
-                        setTimeout(() => {
-                            console.log('Closing trust tab');
+                    // Try multiple methods to close the tab (Safari compatibility)
+                    setTimeout(() => {
+                        if (window.close) {
                             window.close();
-                        }, 2000);
-                    } else {
-                        console.log('No window.opener found');
-                        status.textContent = 'Connected! You can close this tab.';
-                    }
+                        }
+                        // Safari fallback
+                        if (!window.closed) {
+                            window.location.href = 'about:blank';
+                            window.close();
+                        }
+                    }, 1000);
                 };
             } catch (e) {
                 console.log('WebSocket test failed:', e);
