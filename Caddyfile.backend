@@ -1,0 +1,19 @@
+{
+    # Backend-side proxy configuration  
+    auto_https off
+}
+
+# HTTPS proxy for backend manager
+:9443 {
+    # Proxy all requests to HTTP manager
+    reverse_proxy manager:9080
+    
+    # Use self-signed certificate for HTTPS
+    tls internal
+    
+    # Enable logging for debugging
+    log {
+        output stdout
+        format console
+    }
+}

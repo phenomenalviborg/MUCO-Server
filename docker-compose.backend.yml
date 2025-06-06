@@ -1,0 +1,30 @@
+services:
+  manager:
+    build: .
+    expose:
+      - "9080"       # HTTP manager (internal only)
+    restart: unless-stopped
+    networks:
+      - backend-network
+
+  proxy:
+    image: caddy:2-alpine
+    ports:
+      - "9443:9443"  # HTTPS proxy port (external)
+    volumes:
+      - ./Caddyfile.backend:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - manager
+    restart: unless-stopped
+    networks:
+      - backend-network
+
+networks:
+  backend-network:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:
