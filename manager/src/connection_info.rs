@@ -73,13 +73,6 @@ pub fn print_connection_info(config: &ConnectionConfig, local_ip: IpAddr, public
         println!("  • HTTPS: https://{}:{}  (if port {} forwarded)", public_ip, config.https_port, config.https_port);
     }
     
-    println!("\n🎯 Frontend Configuration:");
-    println!("  • Local frontend  → 127.0.0.1:{} (HTTP)", config.http_port);
-    println!("  • Network frontend → {}:{} (HTTP)", local_ip, config.http_port);
-    if config.has_certificates {
-        println!("  • HTTPS frontend  → 127.0.0.1:{} (HTTPS)", config.https_port);
-    }
-    
     println!("\n💡 Troubleshooting: See CONNECTION-GUIDE.md for detailed help");
     println!("================================\n");
 }
@@ -123,11 +116,16 @@ where
     F: Filter + Clone + Send + Sync + 'static,
     F::Extract: warp::Reply,
 {
+    print_startup_banner();
+    let public_ip = detect_and_print_public_ip().await;
+    
     let config = ConnectionConfig::new();
     let local_ip = local_ip().unwrap_or_else(|_| "127.0.0.1".parse().unwrap());
     
-    print_startup_banner();
-    let public_ip = detect_and_print_public_ip().await;
+    // Show SSL setup guidance if no certificates found
+    if !config.has_certificates {
+        print_ssl_setup_guidance();
+    }
     
     let config_copy = ConnectionConfig {
         http_port: config.http_port,
@@ -136,4 +134,26 @@ where
     };
     start_servers(routes, config).await;
     print_connection_info(&config_copy, local_ip, &public_ip);
+}
+
+fn print_ssl_setup_guidance() {
+    println!("\n🔐 SSL Certificate Setup");
+    println!("================================");
+    println!("No SSL certificates found. For HTTPS support:");
+    println!("");
+    println!("📋 Option 1: Generate self-signed certificates (for testing)");
+    println!("  openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes");
+    println!("");
+    println!("📋 Option 2: Use Let's Encrypt (for production)");
+    println!("  1. Install certbot: apt install certbot");
+    println!("  2. Get certificate: certbot certonly --standalone -d yourdomain.com");
+    println!("  3. Copy files: cp /etc/letsencrypt/live/yourdomain.com/{{fullchain,privkey}}.pem .");
+    println!("  4. Rename: mv fullchain.pem cert.pem && mv privkey.pem key.pem");
+    println!("");
+    println!("📋 Option 3: Manual certificates");
+    println!("  Place cert.pem and key.pem in current directory");
+    println!("");
+    println!("⚠️  Note: HTTPS frontends cannot connect to HTTP backends");
+    println!("   due to browser mixed content policy.");
+    println!("================================");
 }

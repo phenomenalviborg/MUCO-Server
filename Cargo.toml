@@ -34,3 +34,7 @@ bytes = "1.7.1"
 
 # OpenSSL with vendored feature for automatic compilation
 openssl = { version = "0.10", features = ["vendored"] }
+
+# ACME client for Let's Encrypt certificates (disabled for now)
+# instant-acme = "0.6"
+# rcgen = "0.12"

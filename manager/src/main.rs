@@ -8,6 +8,7 @@ use status::Status;
 use tokio::sync::RwLock;
 use warp::{reject::Rejection, Filter};
 
+// mod acme; // Disabled for now - too complex for this version
 mod connection_info;
 mod connection_status;
 mod console_input;
