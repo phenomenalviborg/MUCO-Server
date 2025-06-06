@@ -58,6 +58,8 @@ async fn main() {
     console_input_thread(context_ref.clone());
 
     let health_route = warp::path!("health").and_then(handler::health_handler);
+    
+    let trust_route = warp::path!("trust").and_then(handler::trust_handler);
 
     let ws_route = warp::path("ws")
         .and(warp::ws())
@@ -65,6 +67,7 @@ async fn main() {
         .and_then(handler::ws_handler);
 
     let routes = health_route
+        .or(trust_route)
         .or(ws_route)
         .with(warp::cors().allow_any_origin());
 
