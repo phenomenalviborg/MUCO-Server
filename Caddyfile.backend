@@ -3,8 +3,8 @@
     auto_https off
 }
 
-# Simple HTTPS proxy - let Caddy handle TLS automatically
-localhost:9443 {
+# HTTPS proxy using external certificates
+:9443 {
     reverse_proxy localhost:9080
-    tls internal
+    tls cert.pem key.pem
 }
