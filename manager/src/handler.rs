@@ -53,20 +53,6 @@ pub async fn trust_handler() -> Result<impl Reply> {
             border-left: 4px solid #ffc107;
             margin: 1rem 0;
         }
-        button {
-            background: #0277bd;
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 1rem;
-            display: block;
-            margin: 1rem auto;
-        }
-        button:hover {
-            background: #01579b;
-        }
         .footer {
             text-align: center;
             margin-top: 2rem;
@@ -78,7 +64,7 @@ pub async fn trust_handler() -> Result<impl Reply> {
 <body>
     <div class="container">
         <div class="success">
-            ✅ Certificate Trust Successful!
+            ✅ Certificate Trust Successful! (v2.0 - NO BUTTONS)
         </div>
         
         <div class="info">
@@ -95,16 +81,14 @@ pub async fn trust_handler() -> Result<impl Reply> {
             Only proceed if you trust this server.
         </div>
         
-        <h3>Next Steps:</h3>
+        <h3>What happens next:</h3>
         <ol>
-            <li>Return to your MUCO Manager frontend</li>
-            <li>Enter this server's IP address in the "Servers" section</li>
-            <li>The WebSocket connection should now work without certificate errors</li>
+            <li>This page will automatically test the WebSocket connection</li>
+            <li>If successful, this tab will auto-close</li>
+            <li>Return to MUCO Manager - connection will work automatically</li>
         </ol>
         
-        <button onclick="testWebSocket()">Test WebSocket Connection</button>
-        
-        <div id="test-result" style="margin-top: 1rem; text-align: center;"></div>
+        <div id="test-result" style="margin-top: 1rem; text-align: center;">🔄 Waiting for connection attempt from MUCO Manager...</div>
         
         <div class="footer">
             MUCO Server Dynamic SSL Certificate<br>
@@ -113,9 +97,15 @@ pub async fn trust_handler() -> Result<impl Reply> {
     </div>
 
     <script>
+        let isTestingConnection = false;
+        
         function testWebSocket() {
+            if (isTestingConnection) return; // Prevent multiple concurrent tests
+            isTestingConnection = true;
+            
             const result = document.getElementById('test-result');
             result.innerHTML = '🔄 Testing WebSocket connection...';
+            result.style.color = '#0277bd';
             
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/ws`;
@@ -124,29 +114,64 @@ pub async fn trust_handler() -> Result<impl Reply> {
                 const ws = new WebSocket(wsUrl);
                 
                 ws.onopen = function() {
-                    result.innerHTML = '✅ WebSocket connection successful!';
+                    result.innerHTML = '✅ WebSocket connection successful! Closing tab in 2 seconds...';
                     result.style.color = '#16a34a';
                     ws.close();
+                    
+                    console.log('WebSocket opened successfully!');
+                    
+                    // Immediately signal success to parent window
+                    try {
+                        if (window.opener) {
+                            console.log('Sending trust-complete message to parent window');
+                            window.opener.postMessage({ type: 'trust-complete' }, '*');
+                        } else {
+                            console.log('No window.opener found');
+                        }
+                        
+                        // Close tab after success
+                        console.log('Attempting to close tab in 2 seconds...');
+                        setTimeout(() => {
+                            console.log('Closing tab now...');
+                            window.close();
+                        }, 2000);
+                    } catch (e) {
+                        console.log('Auto-close failed:', e);
+                        result.innerHTML = '✅ WebSocket connection successful! You can manually close this tab.';
+                    }
+                    isTestingConnection = false;
                 };
                 
                 ws.onerror = function() {
-                    result.innerHTML = '❌ WebSocket connection failed';
-                    result.style.color = '#dc2626';
+                    result.innerHTML = '🔄 Waiting for connection attempt from MUCO Manager...';
+                    result.style.color = '#666';
+                    isTestingConnection = false;
                 };
                 
                 setTimeout(() => {
                     if (ws.readyState === WebSocket.CONNECTING) {
                         ws.close();
-                        result.innerHTML = '⏱️ Connection timeout - check server status';
-                        result.style.color = '#ea580c';
+                        result.innerHTML = '🔄 Waiting for connection attempt from MUCO Manager...';
+                        result.style.color = '#666';
+                        isTestingConnection = false;
                     }
-                }, 5000);
+                }, 3000);
                 
             } catch (error) {
-                result.innerHTML = '❌ WebSocket test failed: ' + error.message;
-                result.style.color = '#dc2626';
+                result.innerHTML = '🔄 Waiting for connection attempt from MUCO Manager...';
+                result.style.color = '#666';
+                isTestingConnection = false;
             }
         }
+        
+        // Continuously monitor for successful connections by testing periodically
+        // This simulates detecting when MUCO Manager attempts to connect
+        window.addEventListener('load', function() {
+            // Test every 2 seconds to detect when certificate becomes trusted
+            setInterval(() => {
+                testWebSocket();
+            }, 2000);
+        });
     </script>
 </body>
 </html>
