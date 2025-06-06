@@ -10,172 +10,63 @@ pub async fn health_handler() -> Result<impl Reply> {
 }
 
 pub async fn trust_handler() -> Result<impl Reply> {
-    let html = r#"
-<!DOCTYPE html>
-<html lang="en">
+    let html = r#"<!DOCTYPE html>
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MUCO Server - Trust Certificate</title>
+    <title>Certificate Trusted</title>
     <style>
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
-            max-width: 600px;
-            margin: 2rem auto;
-            padding: 2rem;
-            line-height: 1.6;
-            background: #f5f5f5;
+        body { 
+            font-family: system-ui, sans-serif; 
+            text-align: center; 
+            margin: 50px; 
+            background: #f5f5f5; 
         }
-        .container {
-            background: white;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        .container { 
+            background: white; 
+            padding: 40px; 
+            border-radius: 8px; 
+            display: inline-block; 
         }
-        .success {
-            color: #16a34a;
-            font-weight: bold;
-            font-size: 1.2em;
-            text-align: center;
-            margin-bottom: 1rem;
+        .title { 
+            font-size: 24px; 
+            color: #16a34a; 
+            margin-bottom: 20px; 
         }
-        .info {
-            background: #e1f5fe;
-            padding: 1rem;
-            border-radius: 4px;
-            border-left: 4px solid #0277bd;
-            margin: 1rem 0;
-        }
-        .warning {
-            background: #fff3cd;
-            padding: 1rem;
-            border-radius: 4px;
-            border-left: 4px solid #ffc107;
-            margin: 1rem 0;
-        }
-        .footer {
-            text-align: center;
-            margin-top: 2rem;
-            color: #666;
-            font-size: 0.9em;
+        .countdown { 
+            font-size: 18px; 
+            color: #666; 
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="success">
-            ✅ Certificate Trust Successful! (v2.0 - NO BUTTONS)
-        </div>
-        
-        <div class="info">
-            <strong>What just happened?</strong><br>
-            By visiting this page over HTTPS, you've instructed your browser to trust the 
-            self-signed certificate for this MUCO server. This allows the MUCO Manager 
-            frontend to connect securely via WebSocket.
-        </div>
-        
-        <div class="warning">
-            <strong>Security Note:</strong><br>
-            This is a self-signed certificate, which means it wasn't issued by a trusted 
-            certificate authority. It provides encryption but not identity verification. 
-            Only proceed if you trust this server.
-        </div>
-        
-        <h3>What happens next:</h3>
-        <ol>
-            <li>This page will automatically test the WebSocket connection</li>
-            <li>If successful, this tab will auto-close</li>
-            <li>Return to MUCO Manager - connection will work automatically</li>
-        </ol>
-        
-        <div id="test-result" style="margin-top: 1rem; text-align: center;">🔄 Waiting for connection attempt from MUCO Manager...</div>
-        
-        <div class="footer">
-            MUCO Server Dynamic SSL Certificate<br>
-            Generated automatically for secure connections
-        </div>
+        <div class="title">✅ Certificate Trusted</div>
+        <div class="countdown" id="status">Testing connection...</div>
     </div>
 
     <script>
-        let isTestingConnection = false;
-        
-        function testWebSocket() {
-            if (isTestingConnection) return; // Prevent multiple concurrent tests
-            isTestingConnection = true;
-            
-            const result = document.getElementById('test-result');
-            result.innerHTML = '🔄 Testing WebSocket connection...';
-            result.style.color = '#0277bd';
-            
+        function testAndClose() {
+            const status = document.getElementById('status');
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/ws`;
             
             try {
                 const ws = new WebSocket(wsUrl);
-                
                 ws.onopen = function() {
-                    result.innerHTML = '✅ WebSocket connection successful! Closing tab in 2 seconds...';
-                    result.style.color = '#16a34a';
+                    status.textContent = 'Connected! Closing...';
                     ws.close();
-                    
-                    console.log('WebSocket opened successfully!');
-                    
-                    // Immediately signal success to parent window
-                    try {
-                        if (window.opener) {
-                            console.log('Sending trust-complete message to parent window');
-                            window.opener.postMessage({ type: 'trust-complete' }, '*');
-                        } else {
-                            console.log('No window.opener found');
-                        }
-                        
-                        // Close tab after success
-                        console.log('Attempting to close tab in 2 seconds...');
-                        setTimeout(() => {
-                            console.log('Closing tab now...');
-                            window.close();
-                        }, 2000);
-                    } catch (e) {
-                        console.log('Auto-close failed:', e);
-                        result.innerHTML = '✅ WebSocket connection successful! You can manually close this tab.';
-                    }
-                    isTestingConnection = false;
+                    if (window.opener) window.opener.postMessage({ type: 'trust-complete' }, '*');
+                    setTimeout(() => window.close(), 1000);
                 };
-                
-                ws.onerror = function() {
-                    result.innerHTML = '🔄 Waiting for connection attempt from MUCO Manager...';
-                    result.style.color = '#666';
-                    isTestingConnection = false;
-                };
-                
-                setTimeout(() => {
-                    if (ws.readyState === WebSocket.CONNECTING) {
-                        ws.close();
-                        result.innerHTML = '🔄 Waiting for connection attempt from MUCO Manager...';
-                        result.style.color = '#666';
-                        isTestingConnection = false;
-                    }
-                }, 3000);
-                
-            } catch (error) {
-                result.innerHTML = '🔄 Waiting for connection attempt from MUCO Manager...';
-                result.style.color = '#666';
-                isTestingConnection = false;
-            }
+            } catch (e) {}
         }
         
-        // Continuously monitor for successful connections by testing periodically
-        // This simulates detecting when MUCO Manager attempts to connect
-        window.addEventListener('load', function() {
-            // Test every 2 seconds to detect when certificate becomes trusted
-            setInterval(() => {
-                testWebSocket();
-            }, 2000);
-        });
+        testAndClose();
+        setInterval(testAndClose, 2000);
     </script>
 </body>
-</html>
-    "#;
+</html>"#;
     
     Ok(warp::reply::html(html))
 }
