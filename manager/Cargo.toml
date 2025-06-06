@@ -11,6 +11,8 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 futures = { workspace = true }
 uuid = { workspace = true, features = ["serde", "v4"] }
+local-ip-address = "0.6"
+reqwest = { version = "0.11", features = ["json"] }
 
 pollster = { workspace = true }
 anyhow = { workspace = true }

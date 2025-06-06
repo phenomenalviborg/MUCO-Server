@@ -1,4 +1,4 @@
-use std::{collections::HashMap, convert::Infallible, net::{IpAddr, Ipv4Addr, SocketAddr}, sync::Arc};
+use std::{collections::HashMap, convert::Infallible, sync::Arc};
 
 use console_input::console_input_thread;
 use context::{MucoContextRef, MucoContext};
@@ -8,6 +8,7 @@ use status::Status;
 use tokio::sync::RwLock;
 use warp::{reject::Rejection, Filter};
 
+mod connection_info;
 mod connection_status;
 mod console_input;
 mod context;
@@ -66,28 +67,8 @@ async fn main() {
         .or(ws_route)
         .with(warp::cors().allow_any_origin());
 
-    let port = 9000;
-    let addr = SocketAddr::new(IpAddr::from(Ipv4Addr::UNSPECIFIED), port);
-
-    tokio::spawn(async move {
-        // Try to load TLS certificates, fallback to HTTP if not available
-        let cert_path = "cert.pem";
-        let key_path = "key.pem";
-        
-        if std::path::Path::new(cert_path).exists() && std::path::Path::new(key_path).exists() {
-            println!("Starting HTTPS server with TLS certificates");
-            warp::serve(routes)
-                .tls()
-                .cert_path(cert_path)
-                .key_path(key_path)
-                .run(addr)
-                .await;
-        } else {
-            println!("No TLS certificates found, starting HTTP server");
-            println!("To enable HTTPS, place cert.pem and key.pem in the current directory");
-            warp::serve(routes).run(addr).await;
-        }
-    });
+    // Setup and start both HTTP and HTTPS servers with connection info
+    connection_info::setup_and_start_servers(routes).await;
 
     update_clients_periodically(context_ref.clone()).await;
 
