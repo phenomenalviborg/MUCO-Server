@@ -13,6 +13,8 @@ services:
       - "9443:9443"  # HTTPS proxy port (external)
     volumes:
       - ./Caddyfile.backend:/etc/caddy/Caddyfile:ro
+      - ./cert.pem:/cert.pem:ro
+      - ./key.pem:/key.pem:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:

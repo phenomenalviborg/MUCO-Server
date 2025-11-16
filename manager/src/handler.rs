@@ -9,5 +9,7 @@ pub async fn health_handler() -> Result<impl Reply> {
     Ok(StatusCode::OK)
 }
 
-// Certificate trust handler removed - no longer needed with proxy architecture
+pub async fn trust_handler() -> Result<impl Reply> {
+    Ok(warp::reply::html("Certificate trusted. You may close this page."))
+}
 

@@ -66,7 +66,10 @@ async fn main() {
                 .and_then(handler::ws_handler))
     );
 
-    let routes = api_routes
+    // Root level trust endpoint for SSL certificate verification
+    let trust_route = warp::path("trust").and_then(handler::trust_handler);
+
+    let routes = trust_route.or(api_routes)
         .with(warp::cors().allow_any_origin());
 
     // Start simple HTTP server on port 9080

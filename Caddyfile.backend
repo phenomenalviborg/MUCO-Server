@@ -1,10 +1,19 @@
 {
     admin off
     auto_https off
+    servers {
+        protocols h1
+    }
 }
 
 # HTTPS proxy using external certificates
 :9443 {
+    # Trust endpoint for SSL certificate verification
+    handle /trust {
+        respond "Certificate trusted. You may close this page." 200
+    }
+
+    # Proxy everything else to manager (running locally)
     reverse_proxy localhost:9080
     tls cert.pem key.pem
 }
