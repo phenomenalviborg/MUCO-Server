@@ -5,7 +5,7 @@ use msgs::{client_server_msg::{Address, ClientServerMsg}, inter_client_msg::Inte
 use tokio::sync::{RwLock, mpsc};
 use warp::filters::ws::Message;
 
-use crate::{connection_status::ConnectionStatus, headset_data::{HeadsetData, DEFAULT_ENVIRONMENT_CODE}, status::{DeviceId, Status}};
+use crate::{connection_status::ConnectionStatus, discovery::DiscoveryService, headset_data::{HeadsetData, DEFAULT_ENVIRONMENT_CODE}, status::{DeviceId, Status}};
 
 pub struct MucoContext {
     pub to_relay_server_process: tokio::sync::mpsc::Sender<Vec<u8>>,
@@ -14,6 +14,7 @@ pub struct MucoContext {
     pub status: Status,
     pub status_generation: usize,
     pub unknown_connections: Vec<u16>,
+    pub discovery_service: Arc<DiscoveryService>,
 }
 
 pub type MucoContextRef = Arc<RwLock<MucoContext>>;

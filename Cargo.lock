@@ -652,6 +652,7 @@ dependencies = [
  "byteorder",
  "futures",
  "local-ip-address 0.6.5",
+ "mdns-sd",
  "msgs",
  "openssl",
  "pollster",

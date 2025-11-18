@@ -1,9 +1,9 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::{connection_status::ConnectionStatus, context::MucoContextRef, headset_data::SessionState, status::{DeviceId, EnvCodeName}, DEFAULT_SESSION_DURATION};
+use crate::{connection_status::ConnectionStatus, context::MucoContextRef, discovery::DiscoveryEventType, headset_data::SessionState, status::{DeviceId, EnvCodeName}, DEFAULT_SESSION_DURATION};
 use anyhow::Context;
 use futures::{FutureExt, StreamExt};
-use msgs::{client_server_msg::ClientServerMsg, color::Color, inter_client_msg::InterClientMsg, player_data::{EnvData, Language, PlayerAttribute}, player_data_msg::PlayerDataMsg};
+use msgs::{client_server_msg::ClientServerMsg, color::Color, inter_client_msg::InterClientMsg, manager_client_msg::{DiscoveredServerInfo, ManagerClientMsg}, player_data::{EnvData, Language, PlayerAttribute}, player_data_msg::PlayerDataMsg};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use uuid::Uuid;
@@ -22,9 +22,58 @@ pub async fn frontend_connection_process(ws: WebSocket, context_ref: MucoContext
 
     let id = Uuid::new_v4().as_simple().to_string();
 
+    let to_frontend_sender_clone = to_frontend_connection_process.clone();
     context_ref.write().await.to_frontend_senders.insert(id.clone(), to_frontend_connection_process);
 
     println!("{} connected", id);
+
+    // Send initial discovered servers list
+    let discovery_service = {
+        let context = context_ref.read().await;
+        context.discovery_service.clone()
+    };
+
+    let discovered_servers = discovery_service.get_all_servers();
+    let servers_info: Vec<DiscoveredServerInfo> = discovered_servers
+        .into_iter()
+        .map(|s| DiscoveredServerInfo {
+            host: s.host,
+            name: s.name,
+        })
+        .collect();
+
+    let initial_msg = ManagerClientMsg::DiscoveredServers {
+        servers: servers_info,
+    };
+
+    if let Ok(json) = serde_json::to_string(&initial_msg) {
+        let _ = to_frontend_sender_clone.send(Ok(Message::text(json)));
+    }
+
+    // Spawn task to forward discovery events
+    let to_frontend_sender_clone2 = to_frontend_sender_clone.clone();
+    let mut discovery_rx = discovery_service.subscribe();
+    tokio::spawn(async move {
+        while let Ok((event_type, server)) = discovery_rx.recv().await {
+            let msg = match event_type {
+                DiscoveryEventType::ServerDiscovered => {
+                    ManagerClientMsg::ServerDiscovered {
+                        host: server.host,
+                        name: server.name,
+                    }
+                }
+                DiscoveryEventType::ServerLost => {
+                    ManagerClientMsg::ServerLost { host: server.host }
+                }
+            };
+
+            if let Ok(json) = serde_json::to_string(&msg) {
+                if to_frontend_sender_clone2.send(Ok(Message::text(json))).is_err() {
+                    break; // Frontend disconnected
+                }
+            }
+        }
+    });
 
     context_ref.write().await.status_generation += 1;
 

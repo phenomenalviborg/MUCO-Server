@@ -13,6 +13,7 @@ mod connection_info;
 mod connection_status;
 mod console_input;
 mod context;
+mod discovery;
 mod handler;
 mod headset_data;
 mod process_server_client_msg;
@@ -43,7 +44,11 @@ async fn main() {
         msg.pack(&mut bytes);
         to_relay_server_process.send(bytes).await.unwrap();
     }
-    
+
+    // Initialize discovery service
+    let (discovery_service, _discovery_rx) = discovery::DiscoveryService::new();
+    let discovery_service = Arc::new(discovery_service);
+
     let context = MucoContext {
         to_relay_server_process,
         connection_id_to_player: HashMap::new(),
@@ -51,6 +56,7 @@ async fn main() {
         status,
         status_generation: 0,
         unknown_connections: Vec::new(),
+        discovery_service: discovery_service.clone(),
     };
 
     let context_ref = Arc::new(RwLock::new(context));
