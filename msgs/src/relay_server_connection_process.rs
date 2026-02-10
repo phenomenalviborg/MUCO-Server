@@ -7,18 +7,29 @@ pub fn spawn_relay_server_connection_process(server_to_main: tokio::sync::mpsc::
     let (main_to_server, mut server_from_main) = tokio::sync::mpsc::channel::<Vec<u8>>(100);
     tokio::spawn(async move {
         loop {
-            let addr = find_local_server_ip().unwrap();
+            let addr = match find_local_server_ip() {
+                Some(addr) => addr,
+                None => {
+                    println!("failed to find server, retrying in 5 seconds...");
+                    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+                    continue;
+                }
+            };
             println!("found server at address: {addr}");
 
             let mut static_buffer = [0; 1024];
             let mut input_buffer = Vec::new();
 
             let mut stream = TcpStream::connect(addr).await.unwrap();
-            stream.write(NETWORK_VERSION_NUMBER).await.unwrap();
 
+            // Send initial handshake data
+            stream.write(NETWORK_VERSION_NUMBER).await.unwrap();
             let mut my_device_id = [0, 0, 0, 0];
             LittleEndian::write_u32(&mut my_device_id, device_id);
             stream.write(&my_device_id).await.unwrap();
+
+            // Ensure data is flushed to server before entering select loop
+            stream.flush().await.unwrap();
 
             'connected: loop {
                 tokio::select! {
@@ -35,7 +46,8 @@ pub fn spawn_relay_server_connection_process(server_to_main: tokio::sync::mpsc::
                         match stream.write_all(&msg).await {
                             Ok(_) => {},
                             Err(err) => {
-                                println!("error while writing to stream: {err}, restarting connection proccess");
+                                println!("error while writing to stream: {err}, restarting connection process");
+                                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                                 break 'connected;
                             },
                         }
@@ -45,6 +57,7 @@ pub fn spawn_relay_server_connection_process(server_to_main: tokio::sync::mpsc::
                             Ok(len) => len,
                             Err(e) => {
                                 println!("error while reading from socket: {e}, restarting connection");
+                                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                                 break 'connected;
                             }
                         };

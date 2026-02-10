@@ -69,6 +69,9 @@ async fn main() {
     let port = 8080;
     let addr = SocketAddr::new(IpAddr::from(Ipv4Addr::UNSPECIFIED), port);
 
+    // Print IP addresses and port
+    print_network_info(port).await;
+
     tokio::spawn(async move {
         warp::serve(routes).run(addr).await;
     });
@@ -113,4 +116,39 @@ async fn update_clients_periodically(context_ref: MucoContextRef) {
 
 fn with_context(context_ref: MucoContextRef) -> impl Filter<Extract = (MucoContextRef,), Error = Infallible> + Clone {
     warp::any().map(move || context_ref.clone())
+}
+
+async fn print_network_info(port: u16) {
+    println!("=== Manager Server Starting ===");
+
+    // Get local IP address
+    match local_ip_address::local_ip() {
+        Ok(local_ip) => {
+            println!("Local IP:  {}:{}", local_ip, port);
+        }
+        Err(e) => {
+            println!("Could not determine local IP: {}", e);
+        }
+    }
+
+    // Get global/public IP address
+    match get_public_ip().await {
+        Ok(public_ip) => {
+            println!("Global IP: {}:{}", public_ip, port);
+        }
+        Err(e) => {
+            println!("Could not determine global IP: {:?}", e);
+        }
+    }
+
+    println!("Port:      {}", port);
+    println!("==============================");
+}
+
+async fn get_public_ip() -> std::result::Result<String, Box<dyn std::error::Error>> {
+    let response = reqwest::get("https://api.ipify.org?format=text")
+        .await?
+        .text()
+        .await?;
+    Ok(response.trim().to_string())
 }

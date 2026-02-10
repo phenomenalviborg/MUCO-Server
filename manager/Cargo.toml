@@ -16,5 +16,7 @@ pollster = { workspace = true }
 anyhow = { workspace = true }
 
 byteorder = { workspace = true }
+local-ip-address = { workspace = true }
+reqwest = { workspace = true }
 
 msgs = { path = "../msgs" }

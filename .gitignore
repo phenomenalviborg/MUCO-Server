@@ -3,3 +3,4 @@
 *.muco_log
 server_data.txt
 .DS_Store
+.claude
