@@ -650,6 +650,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "byteorder",
+ "discoverable_service",
  "futures",
  "local-ip-address 0.6.5",
  "mdns-sd",

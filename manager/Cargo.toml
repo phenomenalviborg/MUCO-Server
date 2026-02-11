@@ -24,3 +24,4 @@ byteorder = { workspace = true }
 mdns-sd = { workspace = true }
 
 msgs = { path = "../msgs" }
+discoverable_service = { path = "../discoverable_service" }

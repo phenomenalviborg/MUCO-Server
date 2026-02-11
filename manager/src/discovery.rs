@@ -1,10 +1,11 @@
 use mdns_sd::{ServiceDaemon, ServiceEvent};
 use std::collections::HashMap;
+use std::net::IpAddr;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 use tokio::sync::broadcast;
 
-const SERVICE_TYPE: &str = "_muco-server._tcp.local.";
+const SERVICE_TYPE: &str = "_muco-manager._tcp.local.";
 const STALE_THRESHOLD: Duration = Duration::from_secs(30);
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
 
@@ -29,7 +30,11 @@ pub struct DiscoveryService {
 }
 
 impl DiscoveryService {
-    pub fn new() -> (Self, broadcast::Receiver<DiscoveryEvent>) {
+    /// Create a new discovery service
+    ///
+    /// # Arguments
+    /// * `local_ips` - List of IP addresses that belong to this manager (to filter out self-discovery)
+    pub fn new(local_ips: Vec<IpAddr>) -> (Self, broadcast::Receiver<DiscoveryEvent>) {
         let servers = Arc::new(RwLock::new(HashMap::new()));
         let (tx, rx) = broadcast::channel(100);
 
@@ -42,7 +47,7 @@ impl DiscoveryService {
         let servers_clone = servers.clone();
         let tx_clone = tx.clone();
         std::thread::spawn(move || {
-            run_discovery_loop(servers_clone, tx_clone);
+            run_discovery_loop(servers_clone, tx_clone, local_ips);
         });
 
         (service, rx)
@@ -61,6 +66,7 @@ impl DiscoveryService {
 fn run_discovery_loop(
     servers: Arc<RwLock<HashMap<String, DiscoveredServer>>>,
     tx: broadcast::Sender<DiscoveryEvent>,
+    local_ips: Vec<IpAddr>,
 ) {
     let mdns = ServiceDaemon::new().expect("Failed to create mDNS daemon");
     let receiver = mdns.browse(SERVICE_TYPE).expect("Failed to browse for services");
@@ -71,6 +77,11 @@ fn run_discovery_loop(
             Ok(ServiceEvent::ServiceResolved(info)) => {
                 let addresses = info.get_addresses();
                 if let Some(addr) = addresses.iter().next() {
+                    // Skip if this is one of our own IP addresses
+                    if local_ips.contains(addr) {
+                        continue;
+                    }
+
                     let port = info.get_port();
                     let host = format!("{addr}:{port}");
                     let now = Instant::now();
@@ -80,7 +91,7 @@ fn run_discovery_loop(
 
                     let server = DiscoveredServer {
                         host: host.clone(),
-                        name: format!("MUCO Server ({})", host),
+                        name: format!("MUCO Manager ({})", host),
                         last_seen: now,
                     };
 

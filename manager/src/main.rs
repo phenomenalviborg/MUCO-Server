@@ -7,6 +7,8 @@ use process_server_client_msg::process_server_client_msg;
 use status::Status;
 use tokio::sync::RwLock;
 use warp::{reject::Rejection, Filter};
+use connection_info::get_public_ip;
+use discoverable_service::register_msdn;
 
 // mod acme; // Disabled for now - too complex for this version
 mod connection_info;
@@ -24,6 +26,7 @@ type Result<T> = std::result::Result<T, Rejection>;
 
 const SAVE_DATA_PATH: &str = "server_data.txt";
 const DEFAULT_SESSION_DURATION: i64 = 30 * 60;
+const PORT: u16 = 9080;
 
 #[tokio::main]
 async fn main() {
@@ -45,8 +48,29 @@ async fn main() {
         to_relay_server_process.send(bytes).await.unwrap();
     }
 
-    // Initialize discovery service
-    let (discovery_service, _discovery_rx) = discovery::DiscoveryService::new();
+    // Collect all local IP addresses to filter out self-discovery
+    let mut local_ips = vec![
+        std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)), // localhost
+    ];
+
+    // Add the primary local network IP
+    if let Ok(local_ip) = local_ip_address::local_ip() {
+        local_ips.push(local_ip);
+    }
+
+    // Add all network interface IPs to be thorough
+    if let Ok(all_ips) = local_ip_address::list_afinet_netifas() {
+        for (_name, ip) in all_ips {
+            if !local_ips.contains(&ip) {
+                local_ips.push(ip);
+            }
+        }
+    }
+
+    println!("🔍 Filtering self-discovery for IPs: {:?}", local_ips);
+
+    // Initialize discovery service with local IPs to filter out
+    let (discovery_service, _discovery_rx) = discovery::DiscoveryService::new(local_ips);
     let discovery_service = Arc::new(discovery_service);
 
     let context = MucoContext {
@@ -78,13 +102,59 @@ async fn main() {
     let routes = trust_route.or(api_routes)
         .with(warp::cors().allow_any_origin());
 
-    // Start simple HTTP server on port 9080
-    println!("🚀 Starting MUCO Manager backend on http://0.0.0.0:9080");
-    warp::serve(routes)
-        .run(([0, 0, 0, 0], 9080))
-        .await;
+    // Start the periodic status update task
+    update_clients_periodically(context_ref.clone());
 
-    update_clients_periodically(context_ref.clone()).await;
+    // Print connection information
+    println!("🚀 Starting MUCO Manager backend");
+    println!("   Local:   http://127.0.0.1:{}", PORT);
+
+    // Try to get local network IP and register on mDNS
+    let _mdns = if let Ok(local_ip) = local_ip_address::local_ip() {
+        println!("   Network: http://{}:{}", local_ip, PORT);
+
+        // Register manager on mDNS for discovery by other managers
+        let mdns = register_msdn(local_ip, PORT, "muco-manager");
+        println!("   Announced via mDNS as _muco-manager._tcp.local.");
+        Some(mdns)
+    } else {
+        None
+    };
+
+    // Try to get public IP (non-blocking, with timeout)
+    let public_ip_future = tokio::time::timeout(
+        std::time::Duration::from_secs(3),
+        get_public_ip()
+    );
+
+    if let Ok(Some(public_ip)) = public_ip_future.await {
+        println!("   Public:  http://{}:{} (requires port forwarding)", public_ip, PORT);
+    }
+
+    println!();
+
+    // Check if port is available before starting server
+    if let Err(e) = std::net::TcpListener::bind(("0.0.0.0", PORT)) {
+        eprintln!("\n❌ ERROR: Failed to bind to port {}", PORT);
+        eprintln!("   Reason: {}", e);
+        eprintln!("\n💡 Port {} is already in use. This usually means:", PORT);
+        eprintln!("   • Another manager is already running");
+        eprintln!("   • Another process is using port {}", PORT);
+        eprintln!("\n🔍 Check what's using the port:");
+        eprintln!("   lsof -i :{}", PORT);
+        eprintln!("\n🛑 Kill the existing process:");
+        eprintln!("   pkill -f manager");
+        eprintln!();
+        std::process::exit(1);
+    }
+    println!("✅ Port {} is available", PORT);
+
+    // Start HTTP server in a separate task so it doesn't block
+    tokio::spawn(async move {
+        warp::serve(routes)
+            .run(([0, 0, 0, 0], PORT))
+            .await;
+    });
 
     loop {
         let Some(msg_bytes) = main_from_server.recv().await else { break };
@@ -100,7 +170,7 @@ async fn main() {
     }
 }
 
-async fn update_clients_periodically(context_ref: MucoContextRef) {
+fn update_clients_periodically(context_ref: MucoContextRef) {
     let mut frontend_status_generation = 0;
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(std::time::Duration::from_millis(500));
