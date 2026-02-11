@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use anyhow::Context;
-use msgs::{client_server_msg::{Address, ClientServerMsg}, inter_client_msg::InterClientMsg, player_data::{EnvData, EnvTrans, PlayerAttributeTag}, player_data_msg::PlayerDataMsg};
+use msgs::{client_server_msg::{Address, ClientServerMsg}, inter_client_msg::InterClientMsg, player_data::{EnvData, EnvTrans, GuardianConfig, PlayerAttributeTag}, player_data_msg::PlayerDataMsg};
 use tokio::sync::{RwLock, mpsc};
 use warp::filters::ws::Message;
 
@@ -33,6 +33,7 @@ impl MucoContext {
                 EnvData {
                     code: DEFAULT_ENVIRONMENT_CODE.into(),
                     transform: EnvTrans::default(),
+                    guardian: GuardianConfig::default(),
                 }
             },
         }

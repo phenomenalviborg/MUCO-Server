@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use msgs::player_data::{EnvData, EnvTrans};
+use msgs::player_data::{EnvData, EnvTrans, GuardianConfig};
 
 use crate::headset_data::{HeadsetData, PersistentHeadsetData, TempHeadsetData, DEFAULT_ENVIRONMENT_CODE, DEFAULT_ENVIRONMENT_NAME};
 
@@ -22,7 +22,11 @@ pub struct SaveData {
 impl Status {
     pub fn new() -> Status {
         let mut environment_data = HashMap::new();
-        let default_env_data = EnvData { code: DEFAULT_ENVIRONMENT_CODE.into(), transform: EnvTrans::default()};
+        let default_env_data = EnvData {
+            code: DEFAULT_ENVIRONMENT_CODE.into(),
+            transform: EnvTrans::default(),
+            guardian: GuardianConfig::default(),
+        };
         environment_data.insert(DEFAULT_ENVIRONMENT_NAME.into(), default_env_data.into());
         Status {
             headsets: HashMap::new(),

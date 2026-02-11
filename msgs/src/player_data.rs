@@ -46,9 +46,54 @@ pub struct EnvTrans {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum GuardianConfig {
+    Rectangle { width: f32, height: f32 },
+    // Future extensions:
+    // Circle { radius: f32 },
+    // Polygon { vertices: Vec<[f32; 2]> },
+}
+
+impl Default for GuardianConfig {
+    fn default() -> Self {
+        GuardianConfig::Rectangle {
+            width: 9.0,
+            height: 18.0
+        }
+    }
+}
+
+impl GuardianConfig {
+    pub fn pack(&self, wtr: &mut impl Write) {
+        match self {
+            GuardianConfig::Rectangle { width, height } => {
+                wtr.write_u8(1).unwrap(); // Type tag for Rectangle
+                wtr.write_f32::<LittleEndian>(*width).unwrap();
+                wtr.write_f32::<LittleEndian>(*height).unwrap();
+            }
+            // Future types will add more cases here
+        }
+    }
+
+    pub fn decode(rdr: &mut impl Read) -> anyhow::Result<Self> {
+        let type_tag = rdr.read_u8()?;
+        match type_tag {
+            0 => Ok(GuardianConfig::default()), // Backward compat
+            1 => {
+                let width = rdr.read_f32::<LittleEndian>()?;
+                let height = rdr.read_f32::<LittleEndian>()?;
+                Ok(GuardianConfig::Rectangle { width, height })
+            }
+            _ => bail!("Unsupported guardian type: {}", type_tag)
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EnvData {
     pub code: Box<str>,
     pub transform: EnvTrans,
+    #[serde(default)]  // Backward compatibility: use default if missing
+    pub guardian: GuardianConfig,
 }
 
 #[derive(Debug)]
@@ -218,7 +263,9 @@ impl PlayerAttribute {
                             rdr.read_f32::<LittleEndian>()?,
                             rdr.read_f32::<LittleEndian>()?,
                         ]
-                    }
+                    },
+                    guardian: GuardianConfig::decode(rdr)
+                        .unwrap_or_default(), // NEW: Backward compat fallback
                 };
                 PlayerAttribute::EnvironmentData(name, data)
             }
@@ -306,6 +353,7 @@ impl PlayerAttribute {
                 wtr.write_f32::<LittleEndian>(data.transform.rotation[0]).unwrap();
                 wtr.write_f32::<LittleEndian>(data.transform.rotation[1]).unwrap();
                 wtr.write_f32::<LittleEndian>(data.transform.rotation[2]).unwrap();
+                data.guardian.pack(wtr); // NEW: Add guardian config
             }
             PlayerAttribute::DevMode(is_on) => {
                 wtr.write_u32::<LittleEndian>(7).unwrap();
