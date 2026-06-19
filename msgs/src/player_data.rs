@@ -46,6 +46,10 @@ pub struct EnvTrans {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+// Internally tagged so the JSON matches the dashboard/Firestore shape:
+// {"type":"rectangle","width":..,"height":..}. Binary (de)serialization is the
+// hand-written pack/decode below, not serde, so this only affects the WS JSON.
+#[serde(tag = "type", rename_all = "lowercase")]
 pub enum GuardianConfig {
     Rectangle { width: f32, height: f32 },
     // Future extensions:
