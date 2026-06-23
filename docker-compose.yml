@@ -1,31 +1,39 @@
+# MUCO backend stack. Run on each backend / VR box:
+#   ./gen-env.sh && docker compose up -d --build
+#
+# All services use the HOST network on purpose: the relay's mDNS discovery
+# (register_msdn) and the manager's LAN bind must behave exactly like the
+# native processes they replace — a bridged container would not broadcast on
+# the LAN, so VR clients could not discover the relay. `restart: unless-stopped`
+# makes them survive reboot, which is the whole point of replacing the old
+# tmux-based setup.
 services:
   manager:
     build: .
-    expose:
-      - "9080"       # HTTP manager (internal only)
+    image: muco-backend:latest
+    command: ["./manager"]
+    network_mode: host
     restart: unless-stopped
-    networks:
-      - backend-network
 
-  proxy:
-    image: caddy:2-alpine
-    ports:
-      - "9443:9443"  # HTTPS proxy port (external)
-    volumes:
-      - ./Caddyfile.backend:/etc/caddy/Caddyfile:ro
-      - ./cert.pem:/cert.pem:ro
-      - ./key.pem:/key.pem:ro
-      - caddy_data:/data
-      - caddy_config:/config
+  server:
+    image: muco-backend:latest      # same image built by `manager`; just a different binary
+    command: ["./server"]
+    network_mode: host
+    restart: unless-stopped
     depends_on:
       - manager
-    restart: unless-stopped
-    networks:
-      - backend-network
 
-networks:
-  backend-network:
-    driver: bridge
+  caddy:
+    image: caddy:2-alpine
+    network_mode: host
+    env_file: .env                  # SSLIP_HOST=<dashed-ip>.sslip.io, written by gen-env.sh
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data            # persists the Let's Encrypt cert across restarts/reboots
+      - caddy_config:/config
+    restart: unless-stopped
+    depends_on:
+      - manager
 
 volumes:
   caddy_data:

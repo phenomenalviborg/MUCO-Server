@@ -1,0 +1,7 @@
+# Keep the build context small & reproducible. The 7GB target/ and the local
+# git dir must never be uploaded to the daemon; certs/logs aren't build inputs.
+target/
+.git/
+*.pem
+log_*/
+docker-compose*.yml

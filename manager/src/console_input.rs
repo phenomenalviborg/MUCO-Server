@@ -15,7 +15,20 @@ pub fn console_input_thread(context_ref: MucoContextRef) {
 pub async fn console_input_loop(context_ref: MucoContextRef) {
     loop {
         let mut input = String::new();
-        stdin().read_line(&mut input).unwrap();
+        match stdin().read_line(&mut input) {
+            // EOF: stdin is closed or not a TTY (e.g. running detached in a
+            // container). Stop the console loop instead of spinning forever on
+            // repeated zero-byte reads — the manager keeps running headless.
+            Ok(0) => {
+                println!("console input: stdin closed (no TTY); console disabled");
+                break;
+            }
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!("console input: read error ({e}); console disabled");
+                break;
+            }
+        }
         match process_console_input(&input.trim(), &context_ref).await {
             Ok(_) => {}
             Err(e) => println!("error: {e}")

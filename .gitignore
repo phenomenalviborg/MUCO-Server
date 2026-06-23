@@ -8,3 +8,4 @@ cert.pem
 *.pem
 *.pem
 /.claude
+.env
