@@ -41,6 +41,7 @@ pub async fn process_player_attribute(player_attribute: PlayerAttribute, sender:
                         PlayerAttribute::DeviceStats(devise_stats) => headset.temp.device_stats != *devise_stats,
                         PlayerAttribute::Level(level) => headset.temp.level != *level,
                         PlayerAttribute::AudioVolume(audio_volume) => headset.temp.audio_volume != *audio_volume,
+                        PlayerAttribute::Language(language) => headset.persistent.language != *language,
                         _ => false
                     }
                 };
@@ -52,6 +53,7 @@ pub async fn process_player_attribute(player_attribute: PlayerAttribute, sender:
                         PlayerAttribute::DeviceStats(device_stats) => headset.temp.device_stats = device_stats,
                         PlayerAttribute::Level(level) => headset.temp.level = level,
                         PlayerAttribute::AudioVolume(audio_volume) => headset.temp.audio_volume = audio_volume,
+                        PlayerAttribute::Language(language) => headset.persistent.language = language,
                         _ => {}
                     }
                     write.status_generation += 1;
