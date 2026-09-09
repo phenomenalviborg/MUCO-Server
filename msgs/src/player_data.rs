@@ -1,4 +1,7 @@
-use std::{io::{Read, Write}, vec};
+use std::{
+    io::{Read, Write},
+    vec,
+};
 
 use anyhow::bail;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -16,7 +19,7 @@ pub enum Language {
 pub enum TemperatureWarningLevel {
     NoWarning,
     ThrottlingImminent,
-    Throttling
+    Throttling,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -61,7 +64,7 @@ impl Default for GuardianConfig {
     fn default() -> Self {
         GuardianConfig::Rectangle {
             width: 9.0,
-            height: 18.0
+            height: 18.0,
         }
     }
 }
@@ -73,8 +76,7 @@ impl GuardianConfig {
                 wtr.write_u8(1).unwrap(); // Type tag for Rectangle
                 wtr.write_f32::<LittleEndian>(*width).unwrap();
                 wtr.write_f32::<LittleEndian>(*height).unwrap();
-            }
-            // Future types will add more cases here
+            } // Future types will add more cases here
         }
     }
 
@@ -87,7 +89,7 @@ impl GuardianConfig {
                 let height = rdr.read_f32::<LittleEndian>()?;
                 Ok(GuardianConfig::Rectangle { width, height })
             }
-            _ => bail!("Unsupported guardian type: {}", type_tag)
+            _ => bail!("Unsupported guardian type: {}", type_tag),
         }
     }
 }
@@ -96,24 +98,24 @@ impl GuardianConfig {
 pub struct EnvData {
     pub code: Box<str>,
     pub transform: EnvTrans,
-    #[serde(default)]  // Backward compatibility: use default if missing
+    #[serde(default)] // Backward compatibility: use default if missing
     pub guardian: GuardianConfig,
 }
 
 #[derive(Debug)]
 pub enum PlayerAttribute {
-    DeviceId (u32),
-    Color (Color),
+    DeviceId(u32),
+    Color(Color),
     Trans,
-    Level (f32),
+    Level(f32),
     Hands,
-    Language (Language),
-    EnvironmentData (Box<str>, EnvData),
-    DevMode (bool),
-    IsVisible (bool),
-    DeviceStats (DeviceStats),
-    AudioVolume (f32),
-}
+    Language(Language),
+    EnvironmentData(Box<str>, EnvData),
+    DevMode(bool),
+    IsVisible(bool),
+    DeviceStats(DeviceStats),
+    AudioVolume(f32),
+    }
 
 #[derive(Debug, Clone, Copy)]
 pub enum PlayerAttributeTag {
@@ -159,7 +161,7 @@ impl PlayerAttributeTag {
             8 => PlayerAttributeTag::IsVisible,
             9 => PlayerAttributeTag::DeviceStats,
             10 => PlayerAttributeTag::AudioVolume,
-            _ => bail!("tag index not supported")
+            _ => bail!("tag index not supported"),
         };
         Ok(tag)
     }
@@ -223,7 +225,7 @@ impl PlayerAttribute {
             }
             PlayerAttributeTag::Level => {
                 let level = rdr.read_f32::<LittleEndian>()?;
-                PlayerAttribute::Level (level)
+                PlayerAttribute::Level(level)
             }
             PlayerAttributeTag::Hands => {
                 let _hand_type = rdr.read_u8()?;
@@ -248,7 +250,7 @@ impl PlayerAttribute {
                     0 => Language::EnGB,
                     1 => Language::DaDK,
                     2 => Language::DeDE,
-                    _ => bail!("unsupported language index: {language_index}")
+                    _ => bail!("unsupported language index: {language_index}"),
                 };
                 PlayerAttribute::Language(language)
             }
@@ -266,10 +268,9 @@ impl PlayerAttribute {
                             rdr.read_f32::<LittleEndian>()?,
                             rdr.read_f32::<LittleEndian>()?,
                             rdr.read_f32::<LittleEndian>()?,
-                        ]
+                        ],
                     },
-                    guardian: GuardianConfig::decode(rdr)
-                        .unwrap_or_default(), // NEW: Backward compat fallback
+                    guardian: GuardianConfig::decode(rdr).unwrap_or_default(), // NEW: Backward compat fallback
                 };
                 PlayerAttribute::EnvironmentData(name, data)
             }
@@ -297,7 +298,7 @@ impl PlayerAttribute {
                         2 => BatteryStatus::Discharging,
                         3 => BatteryStatus::NotCharging,
                         4 => BatteryStatus::Full,
-                        _ => bail!("unknown battery status")
+                        _ => bail!("unknown battery status"),
                     },
                     battery_level: rdr.read_f32::<LittleEndian>()?,
                     fps: rdr.read_f32::<LittleEndian>()?,
@@ -306,7 +307,7 @@ impl PlayerAttribute {
                         0 => TemperatureWarningLevel::NoWarning,
                         1 => TemperatureWarningLevel::ThrottlingImminent,
                         2 => TemperatureWarningLevel::Throttling,
-                        _ => bail!("unknown temperature waning level")
+                        _ => bail!("unknown temperature waning level"),
                     },
                     temperature_level: rdr.read_f32::<LittleEndian>()?,
                     temperature_trend: rdr.read_f32::<LittleEndian>()?,
@@ -324,8 +325,8 @@ impl PlayerAttribute {
 
     pub fn pack(&self, wtr: &mut impl Write) {
         match self {
-            PlayerAttribute::DeviceId (_) => todo!(),
-            PlayerAttribute::Color (color) => {
+            PlayerAttribute::DeviceId(_) => todo!(),
+            PlayerAttribute::Color(color) => {
                 wtr.write_u32::<LittleEndian>(1).unwrap();
                 wtr.write_f32::<LittleEndian>(color.r).unwrap();
                 wtr.write_f32::<LittleEndian>(color.g).unwrap();
@@ -333,12 +334,12 @@ impl PlayerAttribute {
                 wtr.write_f32::<LittleEndian>(color.a).unwrap();
             }
             PlayerAttribute::Trans => todo!(),
-            PlayerAttribute::Level (level) => {
+            PlayerAttribute::Level(level) => {
                 wtr.write_u32::<LittleEndian>(3).unwrap();
                 wtr.write_f32::<LittleEndian>(*level).unwrap();
-            },
+            }
             PlayerAttribute::Hands => todo!(),
-            PlayerAttribute::Language (language) => {
+            PlayerAttribute::Language(language) => {
                 wtr.write_u32::<LittleEndian>(5).unwrap();
                 let language_index = match language {
                     Language::EnGB => 0,
@@ -351,12 +352,18 @@ impl PlayerAttribute {
                 wtr.write_u32::<LittleEndian>(6).unwrap();
                 write_str(name, wtr);
                 write_str(&data.code, wtr);
-                wtr.write_f32::<LittleEndian>(data.transform.translation[0]).unwrap();
-                wtr.write_f32::<LittleEndian>(data.transform.translation[1]).unwrap();
-                wtr.write_f32::<LittleEndian>(data.transform.translation[2]).unwrap();
-                wtr.write_f32::<LittleEndian>(data.transform.rotation[0]).unwrap();
-                wtr.write_f32::<LittleEndian>(data.transform.rotation[1]).unwrap();
-                wtr.write_f32::<LittleEndian>(data.transform.rotation[2]).unwrap();
+                wtr.write_f32::<LittleEndian>(data.transform.translation[0])
+                    .unwrap();
+                wtr.write_f32::<LittleEndian>(data.transform.translation[1])
+                    .unwrap();
+                wtr.write_f32::<LittleEndian>(data.transform.translation[2])
+                    .unwrap();
+                wtr.write_f32::<LittleEndian>(data.transform.rotation[0])
+                    .unwrap();
+                wtr.write_f32::<LittleEndian>(data.transform.rotation[1])
+                    .unwrap();
+                wtr.write_f32::<LittleEndian>(data.transform.rotation[2])
+                    .unwrap();
                 data.guardian.pack(wtr); // NEW: Add guardian config
             }
             PlayerAttribute::DevMode(is_on) => {

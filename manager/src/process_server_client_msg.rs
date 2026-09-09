@@ -1,8 +1,21 @@
-use msgs::{inter_client_msg::InterClientMsg, player_data::{PlayerAttribute, PlayerAttributeTag}, player_data_msg::PlayerDataMsg, server_client_msg::ServerClientMsg};
+use msgs::{
+    inter_client_msg::InterClientMsg,
+    player_data::{PlayerAttribute, PlayerAttributeTag},
+    player_data_msg::PlayerDataMsg,
+    server_client_msg::ServerClientMsg,
+};
 
-use crate::{connection_status::ConnectionStatus, context::{get_or_request_device_id, MucoContextRef}, headset_data::HeadsetData};
+use crate::{
+    connection_status::ConnectionStatus,
+    context::{get_or_request_device_id, MucoContextRef},
+    headset_data::HeadsetData,
+};
 
-pub async fn process_player_attribute(player_attribute: PlayerAttribute, sender: u16, context_ref: &MucoContextRef) {
+pub async fn process_player_attribute(
+    player_attribute: PlayerAttribute,
+    sender: u16,
+    context_ref: &MucoContextRef,
+) {
     match player_attribute {
         PlayerAttribute::DeviceId(device_id) => {
             {
@@ -20,16 +33,35 @@ pub async fn process_player_attribute(player_attribute: PlayerAttribute, sender:
                 context.status.headsets.insert(device_id, new_player_data);
             }
             let headset = context.status.headsets.get_mut(&device_id).unwrap();
-            headset.temp.connection_status = ConnectionStatus::Connected (sender);
+            headset.temp.connection_status = ConnectionStatus::Connected(sender);
             let color = headset.persistent.color;
             let language = headset.persistent.language;
             let environment_name = headset.persistent.environment_name.clone();
             let environment_data = context.get_environment_data(&environment_name);
             context.connection_id_to_player.insert(sender, device_id);
             context.status_generation += 1;
-            context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Color (color)))).await;
-            context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Language (language)))).await;
-            context.send_msg_to_player(sender, InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::EnvironmentData (environment_name, environment_data)))).await;
+            context
+                .send_msg_to_player(
+                    sender,
+                    InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Color(color))),
+                )
+                .await;
+            context
+                .send_msg_to_player(
+                    sender,
+                    InterClientMsg::PlayerData(PlayerDataMsg::Set(PlayerAttribute::Language(
+                        language,
+                    ))),
+                )
+                .await;
+            context
+                .send_msg_to_player(
+                    sender,
+                    InterClientMsg::PlayerData(PlayerDataMsg::Set(
+                        PlayerAttribute::EnvironmentData(environment_name, environment_data),
+                    )),
+                )
+                .await;
         }
         _ => {
             if let Some(device_id) = get_or_request_device_id(sender, context_ref).await {
@@ -37,23 +69,39 @@ pub async fn process_player_attribute(player_attribute: PlayerAttribute, sender:
                     let read = context_ref.read().await;
                     let headset = read.status.headsets.get(&device_id).unwrap();
                     match &player_attribute {
-                        PlayerAttribute::DevMode(in_dev_mode) => headset.temp.in_dev_mode != *in_dev_mode,
-                        PlayerAttribute::DeviceStats(devise_stats) => headset.temp.device_stats != *devise_stats,
+                        PlayerAttribute::DevMode(in_dev_mode) => {
+                            headset.temp.in_dev_mode != *in_dev_mode
+                        }
+                        PlayerAttribute::DeviceStats(devise_stats) => {
+                            headset.temp.device_stats != *devise_stats
+                        }
                         PlayerAttribute::Level(level) => headset.temp.level != *level,
-                        PlayerAttribute::AudioVolume(audio_volume) => headset.temp.audio_volume != *audio_volume,
-                        PlayerAttribute::Language(language) => headset.persistent.language != *language,
-                        _ => false
+                        PlayerAttribute::AudioVolume(audio_volume) => {
+                            headset.temp.audio_volume != *audio_volume
+                        }
+                        PlayerAttribute::Language(language) => {
+                            headset.persistent.language != *language
+                        }
+                        _ => false,
                     }
                 };
                 if update {
                     let mut write = context_ref.write().await;
                     let headset = write.status.headsets.get_mut(&device_id).unwrap();
                     match player_attribute {
-                        PlayerAttribute::DevMode(in_dev_mode) => headset.temp.in_dev_mode = in_dev_mode,
-                        PlayerAttribute::DeviceStats(device_stats) => headset.temp.device_stats = device_stats,
+                        PlayerAttribute::DevMode(in_dev_mode) => {
+                            headset.temp.in_dev_mode = in_dev_mode
+                        }
+                        PlayerAttribute::DeviceStats(device_stats) => {
+                            headset.temp.device_stats = device_stats
+                        }
                         PlayerAttribute::Level(level) => headset.temp.level = level,
-                        PlayerAttribute::AudioVolume(audio_volume) => headset.temp.audio_volume = audio_volume,
-                        PlayerAttribute::Language(language) => headset.persistent.language = language,
+                        PlayerAttribute::AudioVolume(audio_volume) => {
+                            headset.temp.audio_volume = audio_volume
+                        }
+                        PlayerAttribute::Language(language) => {
+                            headset.persistent.language = language
+                        }
                         _ => {}
                     }
                     write.status_generation += 1;
@@ -65,7 +113,10 @@ pub async fn process_player_attribute(player_attribute: PlayerAttribute, sender:
 
 pub async fn process_server_client_msg(msg: ServerClientMsg<'_>, context_ref: &MucoContextRef) {
     match msg {
-        ServerClientMsg::Hello { session_id, model: _ } => {
+        ServerClientMsg::Hello {
+            session_id,
+            model: _,
+        } => {
             println!("session id: {session_id}");
         }
         ServerClientMsg::ClientConnected(session_id) => {
@@ -86,23 +137,31 @@ pub async fn process_server_client_msg(msg: ServerClientMsg<'_>, context_ref: &M
             };
 
             match inter_client_msg {
-                InterClientMsg::PlayerData (player_data_msg) => {
-                    match player_data_msg {
-                        PlayerDataMsg::Notify (player_data) => {
-                            process_player_attribute(player_data, sender, context_ref).await;
-                        }
-                        msg => println!("unhandeled player data msg: {msg:?}")
+                InterClientMsg::PlayerData(player_data_msg) => match player_data_msg {
+                    PlayerDataMsg::Notify(player_data) => {
+                        process_player_attribute(player_data, sender, context_ref).await;
                     }
-                }
+                    msg => println!("unhandeled player data msg: {msg:?}"),
+                },
                 InterClientMsg::_Ping => {}
-                InterClientMsg::AllPlayerData (data) => {
+                InterClientMsg::AllPlayerData(data) => {
                     process_data_buffer(data, sender, context_ref).await;
                 }
-                InterClientMsg::Diff (diff) => {
-                    let Some(devide_id) = get_or_request_device_id(sender, context_ref).await else { return };
+                InterClientMsg::Diff(diff) => {
+                    let Some(devide_id) = get_or_request_device_id(sender, context_ref).await
+                    else {
+                        return;
+                    };
                     let data = {
                         let mut write = context_ref.write().await;
-                        write.status.headsets.get_mut(&devide_id).unwrap().temp.data_buffer.take()
+                        write
+                            .status
+                            .headsets
+                            .get_mut(&devide_id)
+                            .unwrap()
+                            .temp
+                            .data_buffer
+                            .take()
                     };
                     if let Some(mut data) = data {
                         let mut rdr = &diff[..];
@@ -112,13 +171,15 @@ pub async fn process_server_client_msg(msg: ServerClientMsg<'_>, context_ref: &M
                 }
             }
 
-            context_ref.write().await.get_or_request_unique_device_id(sender);
+            context_ref
+                .write()
+                .await
+                .get_or_request_unique_device_id(sender);
         }
-        ServerClientMsg::DataNotify {..} => {}
-        ServerClientMsg::DataOwner {..} => {},
+        ServerClientMsg::DataNotify { .. } => {}
+        ServerClientMsg::DataOwner { .. } => {}
     }
 }
-
 
 pub async fn process_data_buffer(data: Vec<u8>, sender: u16, context_ref: &MucoContextRef) {
     let mut rdr = &data[..];
@@ -136,26 +197,32 @@ pub async fn process_data_buffer(data: Vec<u8>, sender: u16, context_ref: &MucoC
     }
     let mut write = context_ref.write().await;
     let device_id = *write.connection_id_to_player.get(&sender).unwrap();
-    write.status.headsets.get_mut(&device_id).unwrap().temp.data_buffer = Some(data);
+    write
+        .status
+        .headsets
+        .get_mut(&device_id)
+        .unwrap()
+        .temp
+        .data_buffer = Some(data);
 }
 
 fn apply_diff(a: &mut Vec<u8>, diff: &[u8]) -> Option<()> {
     let mut diff_cursor = 0;
-    let mut  buffer_cursor = 0;
+    let mut buffer_cursor = 0;
     let len = decode_vlq(&mut diff_cursor, diff)?;
-    
+
     while a.len() < len {
         a.push(0);
     }
-    
+
     while buffer_cursor < len {
         let same = decode_vlq(&mut diff_cursor, diff)?;
         buffer_cursor += same;
-        
+
         if buffer_cursor == len {
             break;
         }
-        
+
         let different = decode_vlq(&mut diff_cursor, diff)?;
         for _ in 0..different {
             a[buffer_cursor] = diff[diff_cursor];
@@ -174,7 +241,9 @@ pub fn decode_vlq(cursor: &mut usize, buffer: &[u8]) -> Option<usize> {
         let b = *buffer.get(*cursor)?;
         *cursor += 1;
         acc += ((b & 0b1111111) as usize) << shift;
-        if b & 0b10000000 == 0 { break }
+        if b & 0b10000000 == 0 {
+            break;
+        }
         shift += 7;
     }
 

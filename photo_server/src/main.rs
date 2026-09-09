@@ -1,5 +1,8 @@
 use core::str;
-use std::{fs, net::{IpAddr, Ipv4Addr, SocketAddr}};
+use std::{
+    fs,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+};
 
 use bytes::Bytes;
 use discoverable_service::register_msdn;
@@ -9,7 +12,9 @@ use warp::Filter;
 const FOLDER_NAME: &str = "photos";
 
 fn find_subsequence(haystack: &[u8], needle: &[u8]) -> Option<usize> {
-    haystack.windows(needle.len()).position(|window| window == needle)
+    haystack
+        .windows(needle.len())
+        .position(|window| window == needle)
 }
 
 async fn handle_upload(bytes: Bytes) -> Result<impl warp::Reply, warp::Rejection> {
@@ -45,19 +50,16 @@ async fn main() {
 
     fs::create_dir_all(FOLDER_NAME).unwrap();
 
-    let hello = warp::path!("hello" / String)
-        .map(|name| format!("Hello, {}!", name));
+    let hello = warp::path!("hello" / String).map(|name| format!("Hello, {}!", name));
 
     let upload_photo = warp::post()
         .and(warp::path("upload_photo"))
         .and(warp::path::end())
         .and(warp::body::bytes())
         .and_then(handle_upload);
-    
+
     let routes = hello.or(upload_photo);
     let addr = SocketAddr::new(IpAddr::from(Ipv4Addr::UNSPECIFIED), port);
 
-    warp::serve(routes)
-        .run(addr)
-        .await;
+    warp::serve(routes).run(addr).await;
 }

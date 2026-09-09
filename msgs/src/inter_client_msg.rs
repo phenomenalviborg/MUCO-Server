@@ -7,10 +7,10 @@ use crate::player_data_msg::PlayerDataMsg;
 
 #[derive(Debug)]
 pub enum InterClientMsg {
-    PlayerData (PlayerDataMsg),
+    PlayerData(PlayerDataMsg),
     _Ping,
-    AllPlayerData (Vec<u8>),
-    Diff (Vec<u8>),
+    AllPlayerData(Vec<u8>),
+    Diff(Vec<u8>),
 }
 
 impl InterClientMsg {
@@ -23,8 +23,8 @@ impl InterClientMsg {
                 InterClientMsg::PlayerData(player_data_msg)
             }
             1 => InterClientMsg::_Ping,
-            2 => InterClientMsg::AllPlayerData (rdr.to_owned()),
-            3 => InterClientMsg::Diff (rdr.to_owned()),
+            2 => InterClientMsg::AllPlayerData(rdr.to_owned()),
+            3 => InterClientMsg::Diff(rdr.to_owned()),
             type_index => {
                 bail!("unsupported inter client msg type: {type_index}");
             }
@@ -42,10 +42,10 @@ impl InterClientMsg {
             InterClientMsg::_Ping => {
                 todo!()
             }
-            InterClientMsg::AllPlayerData (_data) => {
+            InterClientMsg::AllPlayerData(_data) => {
                 todo!();
             }
-            InterClientMsg::Diff (_diff) => {
+            InterClientMsg::Diff(_diff) => {
                 todo!();
             }
         }

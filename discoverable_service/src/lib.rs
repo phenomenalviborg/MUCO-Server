@@ -16,8 +16,10 @@ pub fn register_msdn(ip: IpAddr, port: u16, instance_name: &str) -> ServiceDaemo
         ip,
         port,
         &properties[..],
-    ).unwrap();
+    )
+    .unwrap();
 
-    mdns.register(my_service).expect("Failed to register our service");
+    mdns.register(my_service)
+        .expect("Failed to register our service");
     mdns
 }

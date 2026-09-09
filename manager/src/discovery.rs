@@ -69,7 +69,9 @@ fn run_discovery_loop(
     local_ips: Vec<IpAddr>,
 ) {
     let mdns = ServiceDaemon::new().expect("Failed to create mDNS daemon");
-    let receiver = mdns.browse(SERVICE_TYPE).expect("Failed to browse for services");
+    let receiver = mdns
+        .browse(SERVICE_TYPE)
+        .expect("Failed to browse for services");
 
     loop {
         // Try to discover new servers

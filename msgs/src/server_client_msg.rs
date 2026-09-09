@@ -11,26 +11,30 @@ pub enum ServerClientMsg<'a> {
         session_id: u16,
         model: Model,
     },
-    ClientConnected (u16),
-    ClientDisconnected (u16),
-    InterClient (u16, &'a[u8]),
+    ClientConnected(u16),
+    ClientDisconnected(u16),
+    InterClient(u16, &'a [u8]),
     DataNotify {
         room: u8,
         creator_id: u16,
         index: u16,
-        data: &'a[u8]
+        data: &'a [u8],
     },
     DataOwner {
         room: u8,
         creator_id: u16,
         index: u16,
         owner_id: u16,
-    }
+    },
 }
 
 impl<'a> ServerClientMsg<'a> {
-    pub fn dequeue_and_decode_(input_buffer: &mut Vec<u8>) -> Option<(usize, anyhow::Result<ServerClientMsg>)> {
-        let Some((begin, end)) = dequeue_msg(input_buffer) else { return None };
+    pub fn dequeue_and_decode_(
+        input_buffer: &mut Vec<u8>,
+    ) -> Option<(usize, anyhow::Result<ServerClientMsg>)> {
+        let Some((begin, end)) = dequeue_msg(input_buffer) else {
+            return None;
+        };
         let msg = Self::decode(&input_buffer[begin..end]);
         Some((end, msg))
     }
@@ -55,29 +59,26 @@ impl<'a> ServerClientMsg<'a> {
                     rdr.read_exact(&mut buffer).unwrap();
                     model.facts.insert((room, creator_id, index), buffer);
                 }
-                ServerClientMsg::Hello {
-                    session_id,
-                    model,
-                }
+                ServerClientMsg::Hello { session_id, model }
             }
             1 => {
                 let session_id = rdr.read_u16::<LittleEndian>().unwrap();
-                ServerClientMsg::ClientConnected (session_id)
+                ServerClientMsg::ClientConnected(session_id)
             }
             2 => {
                 let session_id = rdr.read_u16::<LittleEndian>().unwrap();
-                ServerClientMsg::ClientDisconnected (session_id)
+                ServerClientMsg::ClientDisconnected(session_id)
             }
             3 => {
                 let sender = rdr.read_u16::<LittleEndian>().unwrap();
-                let bs = &input_buffer[begin+2..];
-                ServerClientMsg::InterClient (sender, bs)
+                let bs = &input_buffer[begin + 2..];
+                ServerClientMsg::InterClient(sender, bs)
             }
             4 => {
                 let room = rdr.read_u8().unwrap();
                 let creator_id = rdr.read_u16::<LittleEndian>().unwrap();
                 let index = rdr.read_u16::<LittleEndian>().unwrap();
-                let data = &input_buffer[begin+6..];
+                let data = &input_buffer[begin + 6..];
                 ServerClientMsg::DataNotify {
                     room,
                     creator_id,
@@ -118,7 +119,8 @@ impl<'a> ServerClientMsg<'a> {
                 wtr.write_u32::<LittleEndian>(len as u32).unwrap();
                 wtr.write_u32::<LittleEndian>(0).unwrap();
                 wtr.write_u16::<LittleEndian>(*session_id).unwrap();
-                wtr.write_u32::<LittleEndian>(model.facts.len() as u32).unwrap();
+                wtr.write_u32::<LittleEndian>(model.facts.len() as u32)
+                    .unwrap();
                 for ((room, creator_id, index), fact) in &model.facts {
                     wtr.write_u8(*room).unwrap();
                     wtr.write_u16::<LittleEndian>(*creator_id).unwrap();
@@ -128,31 +130,43 @@ impl<'a> ServerClientMsg<'a> {
                     wtr.write_all(&fact).unwrap();
                 }
             }
-            ServerClientMsg::ClientConnected (id) => {
+            ServerClientMsg::ClientConnected(id) => {
                 wtr.write_u32::<LittleEndian>(6).unwrap();
                 wtr.write_u32::<LittleEndian>(1).unwrap();
                 wtr.write_u16::<LittleEndian>(*id).unwrap();
             }
-            ServerClientMsg::ClientDisconnected (id) => {
+            ServerClientMsg::ClientDisconnected(id) => {
                 wtr.write_u32::<LittleEndian>(6).unwrap();
                 wtr.write_u32::<LittleEndian>(2).unwrap();
                 wtr.write_u16::<LittleEndian>(*id).unwrap();
             }
-            ServerClientMsg::InterClient (sender, bytes) => {
-                wtr.write_u32::<LittleEndian>(6 + bytes.len() as u32).unwrap();
+            ServerClientMsg::InterClient(sender, bytes) => {
+                wtr.write_u32::<LittleEndian>(6 + bytes.len() as u32)
+                    .unwrap();
                 wtr.write_u32::<LittleEndian>(3).unwrap();
                 wtr.write_u16::<LittleEndian>(*sender).unwrap();
                 wtr.write_all(bytes).unwrap();
             }
-            ServerClientMsg::DataNotify { room, creator_id, index, data } => {
-                wtr.write_u32::<LittleEndian>(9 + data.len() as u32).unwrap();
+            ServerClientMsg::DataNotify {
+                room,
+                creator_id,
+                index,
+                data,
+            } => {
+                wtr.write_u32::<LittleEndian>(9 + data.len() as u32)
+                    .unwrap();
                 wtr.write_u32::<LittleEndian>(4).unwrap();
                 wtr.write_u8(*room).unwrap();
                 wtr.write_u16::<LittleEndian>(*creator_id).unwrap();
                 wtr.write_u16::<LittleEndian>(*index).unwrap();
                 wtr.write_all(data).unwrap();
             }
-            ServerClientMsg::DataOwner { room, creator_id, index, owner_id } => {
+            ServerClientMsg::DataOwner {
+                room,
+                creator_id,
+                index,
+                owner_id,
+            } => {
                 wtr.write_u32::<LittleEndian>(11).unwrap();
                 wtr.write_u32::<LittleEndian>(5).unwrap();
                 wtr.write_u8(*room).unwrap();

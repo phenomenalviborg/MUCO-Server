@@ -2,8 +2,19 @@ use std::{fs::File, io::Write, net::SocketAddr, sync::Arc, time::SystemTime};
 
 use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
 use chrono::Local;
-use msgs::{client_server_msg::{Address, ClientServerMsg}, client_type::ClientType, dequeue::dequeue_msg, model::SharedData, network_version::NETWORK_VERSION_NUMBER, server_client_msg::ServerClientMsg};
-use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::TcpStream, sync::{broadcast, RwLock}};
+use msgs::{
+    client_server_msg::{Address, ClientServerMsg},
+    client_type::ClientType,
+    dequeue::dequeue_msg,
+    model::SharedData,
+    network_version::NETWORK_VERSION_NUMBER,
+    server_client_msg::ServerClientMsg,
+};
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::TcpStream,
+    sync::{broadcast, RwLock},
+};
 
 use crate::broadcast_msg::BroadcastMsg;
 
@@ -18,7 +29,15 @@ impl ClientDb {
         }
     }
 
-    pub async fn new_client(&mut self, socket: TcpStream, addr: SocketAddr, tx: broadcast::Sender<BroadcastMsg>, log_folder_path: Option<&str>, server_start_time: SystemTime, shared_data: Arc<RwLock<SharedData>>) {
+    pub async fn new_client(
+        &mut self,
+        socket: TcpStream,
+        addr: SocketAddr,
+        tx: broadcast::Sender<BroadcastMsg>,
+        log_folder_path: Option<&str>,
+        server_start_time: SystemTime,
+        shared_data: Arc<RwLock<SharedData>>,
+    ) {
         socket.set_nodelay(true).unwrap();
         let session_id = self.session_id_counter;
         self.session_id_counter += 1;
@@ -28,7 +47,14 @@ impl ClientDb {
             let file_path = format!("{path}/{session_id}.muco_log");
             log_file = Some(File::create_new(file_path).unwrap());
         }
-        spawn_client_process(socket, tx, session_id, server_start_time, log_file, shared_data);
+        spawn_client_process(
+            socket,
+            tx,
+            session_id,
+            server_start_time,
+            log_file,
+            shared_data,
+        );
         print_message_preamble_no_device_id(session_id);
         println!("accepted new connection from {addr}");
     }
@@ -49,8 +75,14 @@ pub fn print_message_preamble_no_device_id(session_id: u16) {
     print!("{session_id} ");
 }
 
-
-pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<BroadcastMsg>, session_id: u16, server_start_time: SystemTime, mut log_file: Option<File>, shared_data: Arc<RwLock<SharedData>>) {
+pub fn spawn_client_process(
+    mut socket: TcpStream,
+    tx: broadcast::Sender<BroadcastMsg>,
+    session_id: u16,
+    server_start_time: SystemTime,
+    mut log_file: Option<File>,
+    shared_data: Arc<RwLock<SharedData>>,
+) {
     tokio::spawn(async move {
         let mut static_buffer = [0; 1024];
         let mut input_buffer = Vec::new();
@@ -94,23 +126,20 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
         {
             let mut output_buffer = Vec::new();
             let model = shared_data.read().await.model.clone();
-            let msg = ServerClientMsg::Hello {
-                session_id,
-                model,
-            };
+            let msg = ServerClientMsg::Hello { session_id, model };
             msg.pack(&mut output_buffer);
             match socket.write_all(&output_buffer).await {
                 Ok(_) => {
                     let flush_result = socket.flush().await;
                     match flush_result {
-                        Ok(_) => {},
+                        Ok(_) => {}
                         Err(err) => {
                             print_message_preamble(session_id, device_id);
                             println!("error while flushing data: {err}");
                             return;
                         }
                     }
-                },
+                }
                 Err(e) => {
                     print_message_preamble(session_id, device_id);
                     println!("disconnecting because of error while writing to client: {e}");
@@ -118,7 +147,7 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
                 }
             }
         }
-        
+
         let mut rx = tx.subscribe();
         let mut should_disconnect = false;
         while !should_disconnect {
@@ -190,7 +219,7 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
             }
         }
         {
-            let msg = ServerClientMsg::ClientDisconnected (session_id);
+            let msg = ServerClientMsg::ClientDisconnected(session_id);
             let mut output_buffer: Vec<u8> = Vec::new();
             msg.pack(&mut output_buffer);
             match tx.send(BroadcastMsg::Send(Address::All, output_buffer)) {
@@ -204,12 +233,18 @@ pub fn spawn_client_process(mut socket: TcpStream, tx: broadcast::Sender<Broadca
     });
 }
 
-pub async fn process_broadcast_msg(broadcast_msg: BroadcastMsg, session_id: u16, device_id: u32, socket: &mut TcpStream, should_disconnect: &mut bool) {
+pub async fn process_broadcast_msg(
+    broadcast_msg: BroadcastMsg,
+    session_id: u16,
+    device_id: u32,
+    socket: &mut TcpStream,
+    should_disconnect: &mut bool,
+) {
     match broadcast_msg {
         BroadcastMsg::Send(address, output_buffer) => {
             if address.includes(session_id) {
                 match socket.write_all(&output_buffer).await {
-                    Ok(_) => {},
+                    Ok(_) => {}
                     Err(e) => {
                         print_message_preamble(session_id, device_id);
                         println!("disconnecting because of error while writing to socket: {e}");
@@ -226,53 +261,79 @@ pub async fn process_broadcast_msg(broadcast_msg: BroadcastMsg, session_id: u16,
     }
 }
 
-pub async fn process_msg<'a>(msg: ClientServerMsg<'a>, session_id: u16, shared_data: &RwLock<SharedData>, should_disconnect: &mut bool) -> Option<BroadcastMsg> {
+pub async fn process_msg<'a>(
+    msg: ClientServerMsg<'a>,
+    session_id: u16,
+    shared_data: &RwLock<SharedData>,
+    should_disconnect: &mut bool,
+) -> Option<BroadcastMsg> {
     match msg {
         ClientServerMsg::Disconnect => {
             *should_disconnect = true;
             None
         }
-        ClientServerMsg::BinaryMessageTo (address, content) => {
+        ClientServerMsg::BinaryMessageTo(address, content) => {
             let msg = ServerClientMsg::InterClient(session_id, content);
             let mut output_buffer: Vec<u8> = Vec::new();
             msg.pack(&mut output_buffer);
-            Some(BroadcastMsg::Send (address, output_buffer))
+            Some(BroadcastMsg::Send(address, output_buffer))
         }
-        ClientServerMsg::SetClientType (client_type) => {
+        ClientServerMsg::SetClientType(client_type) => {
             if client_type != ClientType::Player {
                 None
-            }
-            else {
-                let address = Address::Other (session_id);
-                let msg = ServerClientMsg::ClientConnected (session_id);
+            } else {
+                let address = Address::Other(session_id);
+                let msg = ServerClientMsg::ClientConnected(session_id);
                 let mut output_buffer: Vec<u8> = Vec::new();
                 msg.pack(&mut output_buffer);
-                Some(BroadcastMsg::Send (address, output_buffer))
+                Some(BroadcastMsg::Send(address, output_buffer))
             }
         }
-        ClientServerMsg::Kick (to_kick) => Some(BroadcastMsg::Kick (to_kick)),
-        ClientServerMsg::SetData { room, creator_id, index, data } => {
+        ClientServerMsg::Kick(to_kick) => Some(BroadcastMsg::Kick(to_kick)),
+        ClientServerMsg::SetData {
+            room,
+            creator_id,
+            index,
+            data,
+        } => {
             let mut lock = shared_data.write().await;
             if let Some(data_owner) = lock.data_owners.get(&(room, creator_id, index)) {
                 if *data_owner != session_id as u16 {
                     return None;
                 }
             }
-            lock.model.facts.insert((room, creator_id, index), data.into());
-            let address = Address::Other (session_id);
-            let msg = ServerClientMsg::DataNotify { room, creator_id, index, data };
+            lock.model
+                .facts
+                .insert((room, creator_id, index), data.into());
+            let address = Address::Other(session_id);
+            let msg = ServerClientMsg::DataNotify {
+                room,
+                creator_id,
+                index,
+                data,
+            };
             let mut output_buffer: Vec<u8> = Vec::new();
             msg.pack(&mut output_buffer);
-            Some(BroadcastMsg::Send (address, output_buffer))
+            Some(BroadcastMsg::Send(address, output_buffer))
         }
-        ClientServerMsg::ClaimData { room, creator_id, index } => {
+        ClientServerMsg::ClaimData {
+            room,
+            creator_id,
+            index,
+        } => {
             let mut lock = shared_data.write().await;
-            lock.data_owners.insert((room, creator_id, index), session_id as u16);
-            let address = Address::Other (session_id);
-            let msg = ServerClientMsg::DataOwner { room, creator_id, index, owner_id: session_id as u16 };
+            lock.data_owners
+                .insert((room, creator_id, index), session_id as u16);
+            let address = Address::Other(session_id);
+            let msg = ServerClientMsg::DataOwner {
+                room,
+                creator_id,
+                index,
+                owner_id: session_id as u16,
+            };
             let mut output_buffer: Vec<u8> = Vec::new();
             msg.pack(&mut output_buffer);
-            Some(BroadcastMsg::Send (address, output_buffer))
+            Some(BroadcastMsg::Send(address, output_buffer))
         }
     }
 }

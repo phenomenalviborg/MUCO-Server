@@ -1,4 +1,4 @@
-use crate::{ws, Result, context::MucoContextRef};
+use crate::{context::MucoContextRef, ws, Result};
 use warp::{http::StatusCode, Reply};
 
 pub async fn ws_handler(ws: warp::ws::Ws, context_ref: MucoContextRef) -> Result<impl Reply> {
@@ -10,6 +10,7 @@ pub async fn health_handler() -> Result<impl Reply> {
 }
 
 pub async fn trust_handler() -> Result<impl Reply> {
-    Ok(warp::reply::html("Certificate trusted. You may close this page."))
+    Ok(warp::reply::html(
+        "Certificate trusted. You may close this page.",
+    ))
 }
-

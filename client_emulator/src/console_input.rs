@@ -3,11 +3,9 @@ use std::thread;
 
 use tokio::sync::mpsc::{self, Receiver};
 
-pub fn console_input_thread() -> Receiver<String>{
+pub fn console_input_thread() -> Receiver<String> {
     let (sender, receiver) = mpsc::channel(100);
-    thread::spawn(move || {
-        pollster::block_on(console_input_loop(sender))
-    });
+    thread::spawn(move || pollster::block_on(console_input_loop(sender)));
     receiver
 }
 

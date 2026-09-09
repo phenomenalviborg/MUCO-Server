@@ -3,7 +3,10 @@ use std::{fs, time::Duration};
 use byteorder::{LittleEndian, ReadBytesExt};
 use console_cmd::ConsoleCmd;
 use console_input::console_input_thread;
-use msgs::{client_server_msg::ClientServerMsg, dequeue::dequeue_msg, inter_client_msg::InterClientMsg, relay_server_connection_process::spawn_relay_server_connection_process};
+use msgs::{
+    client_server_msg::ClientServerMsg, dequeue::dequeue_msg, inter_client_msg::InterClientMsg,
+    relay_server_connection_process::spawn_relay_server_connection_process,
+};
 
 mod console_cmd;
 mod console_input;
@@ -15,23 +18,21 @@ async fn main() {
         if let Some(console_str) = console_receiver.recv().await {
             let parse_result = ConsoleCmd::parse(console_str.trim()).await;
             match parse_result {
-                Ok(cmd) => {
-                    match cmd {
-                        ConsoleCmd::Display(path) => {
-                            let log_bytes = fs::read(path).unwrap();
-                            display(&log_bytes);
-                        }
-                        ConsoleCmd::Play(path) => {
-                            let log_bytes = fs::read(path).unwrap();
-                            tokio::spawn(play(log_bytes));
-                        }
-                        ConsoleCmd::Loop(path) => {
-                            let log_bytes = fs::read(path).unwrap();
-                            tokio::spawn(loop_play(log_bytes));
-                        }
+                Ok(cmd) => match cmd {
+                    ConsoleCmd::Display(path) => {
+                        let log_bytes = fs::read(path).unwrap();
+                        display(&log_bytes);
                     }
-                }
-                Err(err) => println!("err: {err}")
+                    ConsoleCmd::Play(path) => {
+                        let log_bytes = fs::read(path).unwrap();
+                        tokio::spawn(play(log_bytes));
+                    }
+                    ConsoleCmd::Loop(path) => {
+                        let log_bytes = fs::read(path).unwrap();
+                        tokio::spawn(loop_play(log_bytes));
+                    }
+                },
+                Err(err) => println!("err: {err}"),
             }
         }
     }
@@ -72,7 +73,7 @@ fn display(log_bytes: &[u8]) {
                     let msg = decode_result.unwrap();
                     print!("{msg:?}");
                 }
-                _ => print!("{msg:?}")
+                _ => print!("{msg:?}"),
             }
             println!();
         }
@@ -126,7 +127,9 @@ async fn loop_play(log_bytes: Vec<u8>) {
 async fn play_(log_bytes: &[u8]) {
     let (server_to_main, mut main_from_server) = tokio::sync::mpsc::channel(100);
     let to_relay_server_process = spawn_relay_server_connection_process(server_to_main, false, 333);
-    let start_time = std::time::SystemTime::now().checked_sub(Duration::from_millis(get_first_timestamp(&log_bytes) as u64)).unwrap();
+    let start_time = std::time::SystemTime::now()
+        .checked_sub(Duration::from_millis(get_first_timestamp(&log_bytes) as u64))
+        .unwrap();
     let mut rdr = &log_bytes[..];
     while rdr.len() > 0 {
         let _recv_result = main_from_server.try_recv();
@@ -137,7 +140,10 @@ async fn play_(log_bytes: &[u8]) {
             tokio::time::sleep(Duration::from_millis(delay as u64)).await;
         }
         let (_begin, end) = dequeue_msg(rdr).unwrap();
-        to_relay_server_process.send(rdr[..end].to_owned()).await.unwrap();
+        to_relay_server_process
+            .send(rdr[..end].to_owned())
+            .await
+            .unwrap();
         rdr = &rdr[end..];
     }
 }

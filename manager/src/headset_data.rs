@@ -1,8 +1,12 @@
-use msgs::{color::Color, player_data::{BatteryStatus, DeviceStats, Language, TemperatureWarningLevel}};
+use msgs::{
+    color::Color,
+    player_data::{BatteryStatus, DeviceStats, Language, TemperatureWarningLevel},
+};
 
 use crate::{connection_status::ConnectionStatus, status::EnvCodeName, DEFAULT_SESSION_DURATION};
 
-pub const DEFAULT_ENVIRONMENT_CODE: &str = "AntilatencyAltEnvironmentHorizontalGrid~AgACBLhTiT_cRqA-r45jvZqZmT4AAAAAAAAAAACamRk_AQEAAgM";
+pub const DEFAULT_ENVIRONMENT_CODE: &str =
+    "AntilatencyAltEnvironmentHorizontalGrid~AgACBLhTiT_cRqA-r45jvZqZmT4AAAAAAAAAAACamRk_AQEAAgM";
 pub const DEFAULT_ENVIRONMENT_NAME: &str = "NoEnvironment";
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -19,7 +23,12 @@ impl PersistentHeadsetData {
         PersistentHeadsetData {
             unique_device_id,
             name: "New Headset".to_string(),
-            color: Color { r: 0.0, g: 0.0, b: 0.0, a: 0.0 },
+            color: Color {
+                r: 0.0,
+                g: 0.0,
+                b: 0.0,
+                a: 0.0,
+            },
             language: Language::EnGB,
             environment_name: DEFAULT_ENVIRONMENT_NAME.into(),
         }
@@ -28,14 +37,14 @@ impl PersistentHeadsetData {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum SessionState {
-    Running (i64), //start time in seconds since UNIX-EPOCH
-    Paused (i64), // time elapsed in seconds
+    Running(i64), //start time in seconds since UNIX-EPOCH
+    Paused(i64),  // time elapsed in seconds
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TempHeadsetData {
     pub connection_status: ConnectionStatus,
-    pub session_state: SessionState, 
+    pub session_state: SessionState,
     pub session_duration: i64, //in seconds
     pub in_dev_mode: bool,
     pub is_visible: bool,
@@ -64,7 +73,7 @@ impl TempHeadsetData {
                 temperature_trend: 0.0,
             },
             level: 0.0,
-            audio_volume:0.5,
+            audio_volume: 0.5,
         }
     }
 }

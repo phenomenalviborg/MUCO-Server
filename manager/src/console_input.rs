@@ -1,15 +1,13 @@
 use std::io::stdin;
 use std::thread;
 
-use crate::SAVE_DATA_PATH;
 use crate::context::MucoContextRef;
 use crate::status::Status;
 use crate::ws::{process_client_msg, ServerResponse};
+use crate::SAVE_DATA_PATH;
 
 pub fn console_input_thread(context_ref: MucoContextRef) {
-    thread::spawn(move || {
-        pollster::block_on(console_input_loop(context_ref))
-    });
+    thread::spawn(move || pollster::block_on(console_input_loop(context_ref)));
 }
 
 pub async fn console_input_loop(context_ref: MucoContextRef) {
@@ -31,14 +29,17 @@ pub async fn console_input_loop(context_ref: MucoContextRef) {
         }
         match process_console_input(&input.trim(), &context_ref).await {
             Ok(_) => {}
-            Err(e) => println!("error: {e}")
+            Err(e) => println!("error: {e}"),
         }
     }
 }
 
-pub async fn process_console_input(input: &str, context_ref: &MucoContextRef) -> anyhow::Result<()> {
+pub async fn process_console_input(
+    input: &str,
+    context_ref: &MucoContextRef,
+) -> anyhow::Result<()> {
     let (message_type, rem) = match input.find(" ") {
-        Some(i) => (&input[..i], input[i+1..].trim()),
+        Some(i) => (&input[..i], input[i + 1..].trim()),
         None => (&input[..], ""),
     };
 
@@ -71,4 +72,3 @@ pub async fn process_console_input(input: &str, context_ref: &MucoContextRef) ->
     }
     Ok(())
 }
-

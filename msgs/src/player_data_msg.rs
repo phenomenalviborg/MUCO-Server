@@ -7,9 +7,9 @@ use crate::player_data::{PlayerAttribute, PlayerAttributeTag};
 
 #[derive(Debug)]
 pub enum PlayerDataMsg {
-    Notify (PlayerAttribute),
-    Set (PlayerAttribute),
-    Request (PlayerAttributeTag),
+    Notify(PlayerAttribute),
+    Set(PlayerAttribute),
+    Request(PlayerAttributeTag),
 }
 
 impl PlayerDataMsg {
@@ -39,7 +39,7 @@ impl PlayerDataMsg {
                 wtr.write_u32::<LittleEndian>(1).unwrap();
                 attribute.pack(wtr);
             }
-            PlayerDataMsg::Request (tag) => {
+            PlayerDataMsg::Request(tag) => {
                 wtr.write_u32::<LittleEndian>(2).unwrap();
                 tag.pack(wtr);
             }

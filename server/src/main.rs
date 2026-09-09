@@ -1,21 +1,30 @@
-use std::{env, fs::create_dir, net::{IpAddr, Ipv4Addr, SocketAddr}, sync::Arc};
+use std::{
+    env,
+    fs::create_dir,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    sync::Arc,
+};
 
+use crate::{broadcast_msg::BroadcastMsg, client_db::ClientDb};
 use client_db::print_timestamp;
 use discoverable_service::register_msdn;
 use local_ip_address::local_ip;
 use msgs::model::SharedData;
-use tokio::{net::TcpListener, sync::{broadcast, RwLock}};
-use crate::{broadcast_msg::BroadcastMsg, client_db::ClientDb};
+use tokio::{
+    net::TcpListener,
+    sync::{broadcast, RwLock},
+};
 
-mod client_db;
 mod broadcast_msg;
+mod client_db;
 
 #[tokio::main]
 async fn main() {
     let server_start_time = std::time::SystemTime::now();
     let since_the_epoch = server_start_time
         .duration_since(std::time::UNIX_EPOCH)
-        .expect("Time went backwards").as_secs();
+        .expect("Time went backwards")
+        .as_secs();
 
     let mut enable_logging: bool = false;
     let args: Vec<String> = env::args().collect();
@@ -30,8 +39,7 @@ async fn main() {
         println!("logging enabled");
         create_dir(&path).unwrap();
         Some(&path[..])
-    }
-    else {
+    } else {
         None
     };
 
@@ -42,7 +50,6 @@ async fn main() {
 
     let addr = &SocketAddr::new(IpAddr::from(Ipv4Addr::UNSPECIFIED), port);
     let listener = TcpListener::bind(addr).await.unwrap();
-    
 
     print_timestamp();
     println!("Server Started at ip: {my_local_ip}:{port}");
@@ -55,7 +62,16 @@ async fn main() {
 
     loop {
         let (socket, addr) = listener.accept().await.unwrap();
-        client_db.new_client(socket, addr, tx.clone(), log_folder_path, server_start_time, shared_data.clone()).await;
+        client_db
+            .new_client(
+                socket,
+                addr,
+                tx.clone(),
+                log_folder_path,
+                server_start_time,
+                shared_data.clone(),
+            )
+            .await;
     }
 
     //TODO shut down propperly

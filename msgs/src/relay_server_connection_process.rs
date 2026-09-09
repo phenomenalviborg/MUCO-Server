@@ -1,9 +1,19 @@
 use byteorder::{ByteOrder, LittleEndian};
-use tokio::{net::TcpStream, io::{AsyncReadExt, AsyncWriteExt}};
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::TcpStream,
+};
 
-use crate::{dequeue::dequeue_msg, discover_server::find_local_server_ip, network_version::NETWORK_VERSION_NUMBER};
+use crate::{
+    dequeue::dequeue_msg, discover_server::find_local_server_ip,
+    network_version::NETWORK_VERSION_NUMBER,
+};
 
-pub fn spawn_relay_server_connection_process(server_to_main: tokio::sync::mpsc::Sender<Vec<u8>>, reconnect: bool, device_id: u32) -> tokio::sync::mpsc::Sender<Vec<u8>> {
+pub fn spawn_relay_server_connection_process(
+    server_to_main: tokio::sync::mpsc::Sender<Vec<u8>>,
+    reconnect: bool,
+    device_id: u32,
+) -> tokio::sync::mpsc::Sender<Vec<u8>> {
     let (main_to_server, mut server_from_main) = tokio::sync::mpsc::channel::<Vec<u8>>(100);
     tokio::spawn(async move {
         loop {
@@ -53,7 +63,7 @@ pub fn spawn_relay_server_connection_process(server_to_main: tokio::sync::mpsc::
                             break;
                         }
                         input_buffer.extend(&static_buffer[..len]);
-                        
+
                         while let Some((begin, end)) = dequeue_msg(&mut input_buffer) {
                             let bytes = input_buffer[begin..end].to_vec();
                             match server_to_main.send(bytes).await {
@@ -69,7 +79,7 @@ pub fn spawn_relay_server_connection_process(server_to_main: tokio::sync::mpsc::
                 }
             }
             if !reconnect {
-                return
+                return;
             }
         }
     });

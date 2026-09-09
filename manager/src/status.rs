@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use msgs::player_data::{EnvData, EnvTrans, GuardianConfig};
 
-use crate::headset_data::{HeadsetData, PersistentHeadsetData, TempHeadsetData, DEFAULT_ENVIRONMENT_CODE, DEFAULT_ENVIRONMENT_NAME};
+use crate::headset_data::{
+    HeadsetData, PersistentHeadsetData, TempHeadsetData, DEFAULT_ENVIRONMENT_CODE,
+    DEFAULT_ENVIRONMENT_NAME,
+};
 
 pub type EnvCodeName = Box<str>;
 pub type DeviceId = u32;
@@ -34,8 +37,12 @@ impl Status {
         }
     }
 
-    pub fn save(&self, path: &str) -> anyhow::Result<()>{
-        let persistent_data = self.headsets.iter().map(|(_, headset_data)| headset_data.persistent.clone()).collect::<Vec<_>>();
+    pub fn save(&self, path: &str) -> anyhow::Result<()> {
+        let persistent_data = self
+            .headsets
+            .iter()
+            .map(|(_, headset_data)| headset_data.persistent.clone())
+            .collect::<Vec<_>>();
         let save_data = SaveData {
             headsets: persistent_data,
             environment_data: self.environment_data.clone(),

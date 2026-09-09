@@ -7,7 +7,7 @@ pub mod inter_client_msg;
 pub mod manager_client_msg;
 pub mod model;
 pub mod network_version;
-pub mod player_data_msg;
 pub mod player_data;
+pub mod player_data_msg;
 pub mod relay_server_connection_process;
 pub mod server_client_msg;

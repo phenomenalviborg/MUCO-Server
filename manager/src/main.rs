@@ -1,14 +1,18 @@
 use std::{collections::HashMap, convert::Infallible, sync::Arc};
 
+use connection_info::get_public_ip;
 use console_input::console_input_thread;
-use context::{MucoContextRef, MucoContext};
-use msgs::{client_server_msg::ClientServerMsg, client_type::ClientType, relay_server_connection_process::spawn_relay_server_connection_process, server_client_msg::ServerClientMsg};
+use context::{MucoContext, MucoContextRef};
+use discoverable_service::register_msdn;
+use msgs::{
+    client_server_msg::ClientServerMsg, client_type::ClientType,
+    relay_server_connection_process::spawn_relay_server_connection_process,
+    server_client_msg::ServerClientMsg,
+};
 use process_server_client_msg::process_server_client_msg;
 use status::Status;
 use tokio::sync::RwLock;
 use warp::{reject::Rejection, Filter};
-use connection_info::get_public_ip;
-use discoverable_service::register_msdn;
 
 // mod acme; // Disabled for now - too complex for this version
 mod connection_info;
@@ -42,7 +46,7 @@ async fn main() {
     let to_relay_server_process = spawn_relay_server_connection_process(server_to_main, true, 888);
 
     {
-        let msg = ClientServerMsg::SetClientType (ClientType::Manager);
+        let msg = ClientServerMsg::SetClientType(ClientType::Manager);
         let mut bytes = Vec::new();
         msg.pack(&mut bytes);
         to_relay_server_process.send(bytes).await.unwrap();
@@ -89,17 +93,19 @@ async fn main() {
 
     // API routes with /api prefix for proxy
     let api_routes = warp::path("api").and(
-        warp::path("health").and_then(handler::health_handler)
+        warp::path("health")
+            .and_then(handler::health_handler)
             .or(warp::path("ws")
                 .and(warp::ws())
                 .and(with_context(context_ref.clone()))
-                .and_then(handler::ws_handler))
+                .and_then(handler::ws_handler)),
     );
 
     // Root level trust endpoint for SSL certificate verification
     let trust_route = warp::path("trust").and_then(handler::trust_handler);
 
-    let routes = trust_route.or(api_routes)
+    let routes = trust_route
+        .or(api_routes)
         .with(warp::cors().allow_any_origin());
 
     // Start the periodic status update task
@@ -122,13 +128,13 @@ async fn main() {
     };
 
     // Try to get public IP (non-blocking, with timeout)
-    let public_ip_future = tokio::time::timeout(
-        std::time::Duration::from_secs(3),
-        get_public_ip()
-    );
+    let public_ip_future = tokio::time::timeout(std::time::Duration::from_secs(3), get_public_ip());
 
     if let Ok(Some(public_ip)) = public_ip_future.await {
-        println!("   Public:  http://{}:{} (requires port forwarding)", public_ip, PORT);
+        println!(
+            "   Public:  http://{}:{} (requires port forwarding)",
+            public_ip, PORT
+        );
     }
 
     println!();
@@ -151,13 +157,13 @@ async fn main() {
 
     // Start HTTP server in a separate task so it doesn't block
     tokio::spawn(async move {
-        warp::serve(routes)
-            .run(([0, 0, 0, 0], PORT))
-            .await;
+        warp::serve(routes).run(([0, 0, 0, 0], PORT)).await;
     });
 
     loop {
-        let Some(msg_bytes) = main_from_server.recv().await else { break };
+        let Some(msg_bytes) = main_from_server.recv().await else {
+            break;
+        };
         let result = ServerClientMsg::decode(&msg_bytes);
         let msg = match result {
             Ok(msg) => msg,
@@ -192,6 +198,8 @@ fn update_clients_periodically(context_ref: MucoContextRef) {
     });
 }
 
-fn with_context(context_ref: MucoContextRef) -> impl Filter<Extract = (MucoContextRef,), Error = Infallible> + Clone {
+fn with_context(
+    context_ref: MucoContextRef,
+) -> impl Filter<Extract = (MucoContextRef,), Error = Infallible> + Clone {
     warp::any().map(move || context_ref.clone())
 }

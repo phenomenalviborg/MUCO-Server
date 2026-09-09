@@ -4,7 +4,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 
 pub fn dequeue_msg(input_buffer: &[u8]) -> Option<(usize, usize)> {
     if input_buffer.len() < 4 {
-        return None
+        return None;
     }
 
     let mut rdr = Cursor::new(&input_buffer);
@@ -18,7 +18,7 @@ pub fn dequeue_msg(input_buffer: &[u8]) -> Option<(usize, usize)> {
     let end = msg_ln + 4;
 
     if input_buffer.len() < end {
-        return None
+        return None;
     }
 
     Some((4, end))
