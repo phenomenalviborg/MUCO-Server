@@ -5,6 +5,17 @@ use msgs::{
 
 use crate::{connection_status::ConnectionStatus, status::EnvCodeName, DEFAULT_SESSION_DURATION};
 
+pub const MAX_LOG_BUFFER: usize = 1000;
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct LogEntry {
+    pub level: u8,
+    pub message: String,
+    pub stack_trace: String,
+    pub timestamp: i64,
+    pub unique_device_id: u32,
+}
+
 pub const DEFAULT_ENVIRONMENT_CODE: &str =
     "AntilatencyAltEnvironmentHorizontalGrid~AgACBLhTiT_cRqA-r45jvZqZmT4AAAAAAAAAAACamRk_AQEAAgM";
 pub const DEFAULT_ENVIRONMENT_NAME: &str = "NoEnvironment";

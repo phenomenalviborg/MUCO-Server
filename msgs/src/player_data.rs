@@ -15,6 +15,15 @@ pub enum Language {
     DeDE,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum LogLevel {
+    Log = 0,
+    Warning = 1,
+    Error = 2,
+    Assert = 3,
+    Exception = 4,
+}
+
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum TemperatureWarningLevel {
     NoWarning,
@@ -122,6 +131,11 @@ pub enum PlayerAttribute {
         build_guid: Box<str>,
         platform: Box<str>,
     },
+    DeviceLog {
+        level: u8,
+        message: Box<str>,
+        stack_trace: Box<str>,
+    },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -138,6 +152,7 @@ pub enum PlayerAttributeTag {
     DeviceStats,
     AudioVolume,
     BuildInfo,
+    DeviceLog,
 }
 
 impl PlayerAttributeTag {
@@ -171,6 +186,7 @@ impl PlayerAttributeTag {
             9 => PlayerAttributeTag::DeviceStats,
             10 => PlayerAttributeTag::AudioVolume,
             11 => PlayerAttributeTag::BuildInfo,
+            12 => PlayerAttributeTag::DeviceLog,
             _ => bail!("tag index not supported"),
         };
         Ok(tag)
@@ -189,6 +205,7 @@ impl PlayerAttributeTag {
             PlayerAttributeTag::DeviceStats => 9,
             PlayerAttributeTag::AudioVolume => 10,
             PlayerAttributeTag::BuildInfo => 11,
+            PlayerAttributeTag::DeviceLog => 12,
         };
         wtr.write_u32::<LittleEndian>(tag_index).unwrap();
     }
@@ -343,6 +360,12 @@ impl PlayerAttribute {
                     platform,
                 }
             }
+            PlayerAttributeTag::DeviceLog => {
+                let level = rdr.read_u8()?;
+                let message = read_boxed_str(rdr);
+                let stack_trace = read_boxed_str(rdr);
+                PlayerAttribute::DeviceLog { level, message, stack_trace }
+            }
         };
 
         Ok(msg)
@@ -419,6 +442,16 @@ impl PlayerAttribute {
                 wtr.write_i32::<LittleEndian>(*bundle_version_code).unwrap();
                 write_str(build_guid, wtr);
                 write_str(platform, wtr);
+            }
+            PlayerAttribute::DeviceLog {
+                level,
+                message,
+                stack_trace,
+            } => {
+                wtr.write_u32::<LittleEndian>(12).unwrap();
+                wtr.write_u8(*level).unwrap();
+                write_str(message, wtr);
+                write_str(stack_trace, wtr);
             }
         }
     }

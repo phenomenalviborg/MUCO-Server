@@ -141,6 +141,8 @@ pub enum ClientMsg {
     RenameEnvironment(EnvCodeName, EnvCodeName),
     SetDevMode(DeviceId, bool),
     SetIsVisible(DeviceId, bool),
+    SetLogStreaming(DeviceId, bool),
+    ClearDeviceLogs(DeviceId),
 }
 
 pub enum ServerResponse {
@@ -169,6 +171,7 @@ pub async fn process_client_msg(
             }
 
             context.status.headsets.remove(&unique_device_id);
+            context.device_logs.remove(&unique_device_id);
             UpdateClients
         }
         Kick(unique_device_id) => {
@@ -394,6 +397,37 @@ pub async fn process_client_msg(
                 ));
                 context.send_msg_to_player(session_id, msg).await;
             }
+            UpdateClients
+        }
+        SetLogStreaming(unique_device_id, enabled) => {
+            let context = context_ref.read().await;
+            let headset = context
+                .status
+                .headsets
+                .get(&unique_device_id)
+                .context("could not find headset with id {unique_device_id}")?;
+            if let ConnectionStatus::Connected(session_id) = headset.temp.connection_status {
+                let level = if enabled { 255u8 } else { 254u8 };
+                let msg = InterClientMsg::PlayerData(PlayerDataMsg::Set(
+                    PlayerAttribute::DeviceLog {
+                        level,
+                        message: "".into(),
+                        stack_trace: "".into(),
+                    },
+                ));
+                // Drop the read lock before acquiring write
+                drop(context);
+                let mut write = context_ref.write().await;
+                write.send_msg_to_player(session_id, msg).await;
+            }
+            Nothing
+        }
+        ClearDeviceLogs(unique_device_id) => {
+            let mut context = context_ref.write().await;
+            if let Some(buffer) = context.device_logs.get_mut(&unique_device_id) {
+                buffer.clear();
+            }
+            context.pending_log_broadcast = false;
             UpdateClients
         }
     })

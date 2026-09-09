@@ -1,4 +1,5 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::{HashMap, VecDeque};
+use std::sync::Arc;
 
 use anyhow::Context;
 use msgs::{
@@ -13,7 +14,7 @@ use warp::filters::ws::Message;
 use crate::{
     connection_status::ConnectionStatus,
     discovery::DiscoveryService,
-    headset_data::{HeadsetData, DEFAULT_ENVIRONMENT_CODE},
+    headset_data::{HeadsetData, LogEntry, DEFAULT_ENVIRONMENT_CODE},
     status::{DeviceId, Status},
 };
 
@@ -26,6 +27,8 @@ pub struct MucoContext {
     pub status_generation: usize,
     pub unknown_connections: Vec<u16>,
     pub discovery_service: Arc<DiscoveryService>,
+    pub device_logs: HashMap<DeviceId, VecDeque<LogEntry>>,
+    pub pending_log_broadcast: bool,
 }
 
 pub type MucoContextRef = Arc<RwLock<MucoContext>>;
@@ -57,8 +60,32 @@ impl MucoContext {
         }
     }
 
-    pub async fn update_clients(&self) {
-        let json = serde_json::to_string(&self.status).unwrap();
+    pub async fn update_clients(&mut self) {
+        // Serialize status (headsets + environments)
+        let mut json_value = serde_json::to_value(&self.status).unwrap();
+
+        // Collect pending log entries (up to 100 per headset per broadcast)
+        if self.pending_log_broadcast {
+            let mut pending_logs: Vec<LogEntry> = Vec::new();
+            for (_, log_buffer) in &mut self.device_logs {
+                if log_buffer.is_empty() {
+                    continue;
+                }
+                let batch_size = log_buffer.len().min(100);
+                for _ in 0..batch_size {
+                    if let Some(entry) = log_buffer.pop_front() {
+                        pending_logs.push(entry);
+                    }
+                }
+            }
+            if !pending_logs.is_empty() {
+                json_value["log"] = serde_json::to_value(&pending_logs).unwrap();
+            }
+            // Clear flag if all drained
+            self.pending_log_broadcast = self.device_logs.values().any(|b| !b.is_empty());
+        }
+
+        let json = serde_json::to_string(&json_value).unwrap();
 
         for (_id, to_frontend_sender) in self.to_frontend_senders.iter() {
             to_frontend_sender
@@ -75,6 +102,8 @@ impl MucoContext {
             return;
         };
         headset.temp.connection_status = ConnectionStatus::Disconnected;
+        // Clear runtime-only logs on disconnect
+        self.device_logs.remove(device_id);
         println!("client disconnected: {device_id}");
         self.status_generation += 1;
     }

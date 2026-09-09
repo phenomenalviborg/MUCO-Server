@@ -85,6 +85,8 @@ async fn main() {
         status_generation: 0,
         unknown_connections: Vec::new(),
         discovery_service: discovery_service.clone(),
+        device_logs: HashMap::new(),
+        pending_log_broadcast: false,
     };
 
     let context_ref = Arc::new(RwLock::new(context));
@@ -183,7 +185,7 @@ fn update_clients_periodically(context_ref: MucoContextRef) {
         loop {
             interval.tick().await;
             {
-                let context = context_ref.read().await;
+                let mut context = context_ref.write().await;
                 if context.status_generation != frontend_status_generation {
                     context.update_clients().await;
                     context.status.save(SAVE_DATA_PATH).unwrap();

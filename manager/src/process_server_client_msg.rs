@@ -1,3 +1,5 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use msgs::{
     inter_client_msg::InterClientMsg,
     player_data::{PlayerAttribute, PlayerAttributeTag},
@@ -8,7 +10,7 @@ use msgs::{
 use crate::{
     connection_status::ConnectionStatus,
     context::{get_or_request_device_id, MucoContextRef},
-    headset_data::HeadsetData,
+    headset_data::{HeadsetData, LogEntry, MAX_LOG_BUFFER},
 };
 
 pub async fn process_player_attribute(
@@ -62,6 +64,43 @@ pub async fn process_player_attribute(
                     )),
                 )
                 .await;
+        }
+        PlayerAttribute::DeviceLog {
+            level,
+            message,
+            stack_trace,
+        } => {
+            if level <= 4 {
+                // Log entry from the player — append to log buffer with dev-mode gate
+                if let Some(device_id) = get_or_request_device_id(sender, context_ref).await {
+                    let mut context = context_ref.write().await;
+                    let Some(headset) = context.status.headsets.get(&device_id) else {
+                        return;
+                    };
+                    if !headset.temp.in_dev_mode {
+                        return;
+                    }
+                    let timestamp = SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs() as i64;
+                    let entry = LogEntry {
+                        level,
+                        message: message.to_string(),
+                        stack_trace: stack_trace.to_string(),
+                        timestamp,
+                        unique_device_id: device_id,
+                    };
+                    let buffer = context.device_logs.entry(device_id).or_default();
+                    buffer.push_back(entry);
+                    if buffer.len() > MAX_LOG_BUFFER {
+                        buffer.pop_front();
+                    }
+                    context.pending_log_broadcast = true;
+                }
+            }
+            // Control messages (level 254/255) from the manager are handled in ws.rs
+            // and forwarded to the player — nothing to do here for a Notify
         }
         _ => {
             if let Some(device_id) = get_or_request_device_id(sender, context_ref).await {
