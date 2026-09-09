@@ -82,6 +82,19 @@ pub async fn process_player_attribute(
                         PlayerAttribute::Language(language) => {
                             headset.persistent.language != *language
                         }
+                        PlayerAttribute::BuildInfo {
+                            product_name,
+                            version,
+                            bundle_version_code,
+                            build_guid,
+                            platform,
+                        } => {
+                            headset.temp.build_product_name.as_str() != product_name.as_ref()
+                                || headset.temp.build_version.as_str() != version.as_ref()
+                                || headset.temp.build_bundle_version_code != *bundle_version_code
+                                || headset.temp.build_guid.as_str() != build_guid.as_ref()
+                                || headset.temp.build_platform.as_str() != platform.as_ref()
+                        }
                         _ => false,
                     }
                 };
@@ -101,6 +114,19 @@ pub async fn process_player_attribute(
                         }
                         PlayerAttribute::Language(language) => {
                             headset.persistent.language = language
+                        }
+                        PlayerAttribute::BuildInfo {
+                            product_name,
+                            version,
+                            bundle_version_code,
+                            build_guid,
+                            platform,
+                        } => {
+                            headset.temp.build_product_name = String::from(product_name);
+                            headset.temp.build_version = String::from(version);
+                            headset.temp.build_bundle_version_code = bundle_version_code;
+                            headset.temp.build_guid = String::from(build_guid);
+                            headset.temp.build_platform = String::from(platform);
                         }
                         _ => {}
                     }

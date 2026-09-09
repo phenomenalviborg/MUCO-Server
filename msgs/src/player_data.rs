@@ -115,7 +115,14 @@ pub enum PlayerAttribute {
     IsVisible(bool),
     DeviceStats(DeviceStats),
     AudioVolume(f32),
-    }
+    BuildInfo {
+        product_name: Box<str>,
+        version: Box<str>,
+        bundle_version_code: i32,
+        build_guid: Box<str>,
+        platform: Box<str>,
+    },
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum PlayerAttributeTag {
@@ -130,6 +137,7 @@ pub enum PlayerAttributeTag {
     IsVisible,
     DeviceStats,
     AudioVolume,
+    BuildInfo,
 }
 
 impl PlayerAttributeTag {
@@ -145,6 +153,7 @@ impl PlayerAttributeTag {
         PlayerAttributeTag::IsVisible,
         PlayerAttributeTag::DeviceStats,
         PlayerAttributeTag::AudioVolume,
+        PlayerAttributeTag::BuildInfo,
     ];
 
     pub fn decode(rdr: &mut &[u8]) -> anyhow::Result<Self> {
@@ -161,6 +170,7 @@ impl PlayerAttributeTag {
             8 => PlayerAttributeTag::IsVisible,
             9 => PlayerAttributeTag::DeviceStats,
             10 => PlayerAttributeTag::AudioVolume,
+            11 => PlayerAttributeTag::BuildInfo,
             _ => bail!("tag index not supported"),
         };
         Ok(tag)
@@ -178,6 +188,7 @@ impl PlayerAttributeTag {
             PlayerAttributeTag::IsVisible => 8,
             PlayerAttributeTag::DeviceStats => 9,
             PlayerAttributeTag::AudioVolume => 10,
+            PlayerAttributeTag::BuildInfo => 11,
         };
         wtr.write_u32::<LittleEndian>(tag_index).unwrap();
     }
@@ -318,6 +329,20 @@ impl PlayerAttribute {
                 let audio_volume = rdr.read_f32::<LittleEndian>()?;
                 PlayerAttribute::AudioVolume(audio_volume)
             }
+            PlayerAttributeTag::BuildInfo => {
+                let product_name = read_boxed_str(rdr);
+                let version = read_boxed_str(rdr);
+                let bundle_version_code = rdr.read_i32::<LittleEndian>()?;
+                let build_guid = read_boxed_str(rdr);
+                let platform = read_boxed_str(rdr);
+                PlayerAttribute::BuildInfo {
+                    product_name,
+                    version,
+                    bundle_version_code,
+                    build_guid,
+                    platform,
+                }
+            }
         };
 
         Ok(msg)
@@ -380,6 +405,20 @@ impl PlayerAttribute {
             PlayerAttribute::AudioVolume(audio_volume) => {
                 wtr.write_u32::<LittleEndian>(10).unwrap();
                 wtr.write_f32::<LittleEndian>(*audio_volume).unwrap();
+            }
+            PlayerAttribute::BuildInfo {
+                product_name,
+                version,
+                bundle_version_code,
+                build_guid,
+                platform,
+            } => {
+                wtr.write_u32::<LittleEndian>(11).unwrap();
+                write_str(product_name, wtr);
+                write_str(version, wtr);
+                wtr.write_i32::<LittleEndian>(*bundle_version_code).unwrap();
+                write_str(build_guid, wtr);
+                write_str(platform, wtr);
             }
         }
     }

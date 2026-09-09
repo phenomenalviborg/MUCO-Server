@@ -52,6 +52,11 @@ pub struct TempHeadsetData {
     pub data_buffer: Option<Vec<u8>>,
     pub level: f32,
     pub audio_volume: f32,
+    pub build_product_name: String,
+    pub build_version: String,
+    pub build_bundle_version_code: i32,
+    pub build_guid: String,
+    pub build_platform: String,
 }
 
 impl TempHeadsetData {
@@ -74,6 +79,11 @@ impl TempHeadsetData {
             },
             level: 0.0,
             audio_volume: 0.5,
+            build_product_name: String::new(),
+            build_version: String::new(),
+            build_bundle_version_code: -1,
+            build_guid: String::new(),
+            build_platform: String::new(),
         }
     }
 }
