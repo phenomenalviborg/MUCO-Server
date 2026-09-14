@@ -68,6 +68,8 @@ pub struct TempHeadsetData {
     pub build_bundle_version_code: i32,
     pub build_guid: String,
     pub build_platform: String,
+    pub muco_package_version: String,
+    pub muco_package_commit: String,
 }
 
 impl TempHeadsetData {
@@ -95,6 +97,8 @@ impl TempHeadsetData {
             build_bundle_version_code: -1,
             build_guid: String::new(),
             build_platform: String::new(),
+            muco_package_version: String::new(),
+            muco_package_commit: String::new(),
         }
     }
 }

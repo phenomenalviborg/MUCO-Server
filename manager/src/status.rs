@@ -14,6 +14,8 @@ pub type DeviceId = u32;
 pub struct Status {
     pub headsets: HashMap<DeviceId, HeadsetData>,
     pub environment_data: HashMap<EnvCodeName, EnvData>,
+    pub server_version: String,
+    pub server_commit: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -34,6 +36,8 @@ impl Status {
         Status {
             headsets: HashMap::new(),
             environment_data,
+            server_version: env!("CARGO_PKG_VERSION").to_owned(),
+            server_commit: env!("MUCO_GIT_COMMIT").to_owned(),
         }
     }
 

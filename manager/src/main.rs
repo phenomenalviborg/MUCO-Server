@@ -114,7 +114,11 @@ async fn main() {
     update_clients_periodically(context_ref.clone());
 
     // Print connection information
-    println!("🚀 Starting MUCO Manager backend");
+    println!(
+        "🚀 MUCO-Server {} ({})",
+        env!("CARGO_PKG_VERSION"),
+        env!("MUCO_GIT_COMMIT")
+    );
     println!("   Local:   http://127.0.0.1:{}", PORT);
 
     // Try to get local network IP and register on mDNS

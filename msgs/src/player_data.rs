@@ -130,6 +130,8 @@ pub enum PlayerAttribute {
         bundle_version_code: i32,
         build_guid: Box<str>,
         platform: Box<str>,
+        muco_package_version: Box<str>,
+        muco_package_commit: Box<str>,
     },
     DeviceLog {
         level: u8,
@@ -352,19 +354,27 @@ impl PlayerAttribute {
                 let bundle_version_code = rdr.read_i32::<LittleEndian>()?;
                 let build_guid = read_boxed_str(rdr);
                 let platform = read_boxed_str(rdr);
+                let muco_package_version = read_boxed_str(rdr);
+                let muco_package_commit = read_boxed_str(rdr);
                 PlayerAttribute::BuildInfo {
                     product_name,
                     version,
                     bundle_version_code,
                     build_guid,
                     platform,
+                    muco_package_version,
+                    muco_package_commit,
                 }
             }
             PlayerAttributeTag::DeviceLog => {
                 let level = rdr.read_u8()?;
                 let message = read_boxed_str(rdr);
                 let stack_trace = read_boxed_str(rdr);
-                PlayerAttribute::DeviceLog { level, message, stack_trace }
+                PlayerAttribute::DeviceLog {
+                    level,
+                    message,
+                    stack_trace,
+                }
             }
         };
 
@@ -435,6 +445,8 @@ impl PlayerAttribute {
                 bundle_version_code,
                 build_guid,
                 platform,
+                muco_package_version,
+                muco_package_commit,
             } => {
                 wtr.write_u32::<LittleEndian>(11).unwrap();
                 write_str(product_name, wtr);
@@ -442,6 +454,8 @@ impl PlayerAttribute {
                 wtr.write_i32::<LittleEndian>(*bundle_version_code).unwrap();
                 write_str(build_guid, wtr);
                 write_str(platform, wtr);
+                write_str(muco_package_version, wtr);
+                write_str(muco_package_commit, wtr);
             }
             PlayerAttribute::DeviceLog {
                 level,
