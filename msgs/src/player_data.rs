@@ -8,11 +8,45 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use crate::color::Color;
 
-#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize)]
 pub enum Language {
+    #[serde(rename = "en-GB")]
     EnGB,
+    #[serde(rename = "da-DK")]
     DaDK,
+    #[serde(rename = "de-DE")]
     DeDE,
+}
+
+impl Language {
+    pub fn as_bcp47(self) -> &'static str {
+        match self {
+            Language::EnGB => "en-GB",
+            Language::DaDK => "da-DK",
+            Language::DeDE => "de-DE",
+        }
+    }
+
+    pub fn from_bcp47(s: &str) -> Result<Language, String> {
+        match s {
+            "en-GB" | "EnGB" => Ok(Language::EnGB),
+            "da-DK" | "DaDK" => Ok(Language::DaDK),
+            "de-DE" | "DeDE" => Ok(Language::DeDE),
+            _ => Err(format!("unsupported language tag: {s}")),
+        }
+    }
+}
+
+// Custom Deserialize: accepts BCP 47 tags and legacy variant names,
+// so persisted data written before the BCP 47 switch still loads.
+impl<'de> serde::Deserialize<'de> for Language {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Language::from_bcp47(&s).map_err(serde::de::Error::custom)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -275,12 +309,10 @@ impl PlayerAttribute {
                 PlayerAttribute::Hands
             }
             PlayerAttributeTag::Language => {
-                let language_index = rdr.read_u32::<LittleEndian>().unwrap();
-                let language = match language_index {
-                    0 => Language::EnGB,
-                    1 => Language::DaDK,
-                    2 => Language::DeDE,
-                    _ => bail!("unsupported language index: {language_index}"),
+                let tag = read_boxed_str(rdr);
+                let language = match Language::from_bcp47(&tag) {
+                    Ok(language) => language,
+                    Err(_) => bail!("unsupported language tag: {tag}"),
                 };
                 PlayerAttribute::Language(language)
             }
@@ -399,12 +431,7 @@ impl PlayerAttribute {
             PlayerAttribute::Hands => todo!(),
             PlayerAttribute::Language(language) => {
                 wtr.write_u32::<LittleEndian>(5).unwrap();
-                let language_index = match language {
-                    Language::EnGB => 0,
-                    Language::DaDK => 1,
-                    Language::DeDE => 2,
-                };
-                wtr.write_u32::<LittleEndian>(language_index).unwrap();
+                write_str(language.as_bcp47(), wtr);
             }
             PlayerAttribute::EnvironmentData(name, data) => {
                 wtr.write_u32::<LittleEndian>(6).unwrap();
