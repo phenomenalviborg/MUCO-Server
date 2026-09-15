@@ -110,6 +110,8 @@ async fn main() {
         .or(api_routes)
         .with(warp::cors().allow_any_origin());
 
+    println!("HTTP routes: /api/health, /api/ws, /trust");
+
     // Start the periodic status update task
     update_clients_periodically(context_ref.clone());
 
