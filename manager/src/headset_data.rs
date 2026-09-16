@@ -70,6 +70,7 @@ pub struct TempHeadsetData {
     pub build_platform: String,
     pub muco_package_version: String,
     pub muco_package_commit: String,
+    pub supported_language_tags: Vec<String>,
 }
 
 impl TempHeadsetData {
@@ -99,6 +100,7 @@ impl TempHeadsetData {
             build_platform: String::new(),
             muco_package_version: String::new(),
             muco_package_commit: String::new(),
+            supported_language_tags: Vec::new(),
         }
     }
 }

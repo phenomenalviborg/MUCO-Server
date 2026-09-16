@@ -140,6 +140,9 @@ pub async fn process_player_attribute(
                                 || headset.temp.muco_package_commit.as_str()
                                     != muco_package_commit.as_ref()
                         }
+                        PlayerAttribute::SupportedLanguages(tags) => {
+                            headset.temp.supported_language_tags != *tags
+                        }
                         _ => false,
                     }
                 };
@@ -176,6 +179,9 @@ pub async fn process_player_attribute(
                             headset.temp.build_platform = String::from(platform);
                             headset.temp.muco_package_version = String::from(muco_package_version);
                             headset.temp.muco_package_commit = String::from(muco_package_commit);
+                        }
+                        PlayerAttribute::SupportedLanguages(tags) => {
+                            headset.temp.supported_language_tags = tags;
                         }
                         _ => {}
                     }

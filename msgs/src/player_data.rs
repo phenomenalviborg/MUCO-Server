@@ -172,6 +172,7 @@ pub enum PlayerAttribute {
         message: Box<str>,
         stack_trace: Box<str>,
     },
+    SupportedLanguages(Vec<String>),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -189,6 +190,7 @@ pub enum PlayerAttributeTag {
     AudioVolume,
     BuildInfo,
     DeviceLog,
+    SupportedLanguages,
 }
 
 impl PlayerAttributeTag {
@@ -205,6 +207,7 @@ impl PlayerAttributeTag {
         PlayerAttributeTag::DeviceStats,
         PlayerAttributeTag::AudioVolume,
         PlayerAttributeTag::BuildInfo,
+        PlayerAttributeTag::SupportedLanguages,
     ];
 
     pub fn decode(rdr: &mut &[u8]) -> anyhow::Result<Self> {
@@ -223,6 +226,7 @@ impl PlayerAttributeTag {
             10 => PlayerAttributeTag::AudioVolume,
             11 => PlayerAttributeTag::BuildInfo,
             12 => PlayerAttributeTag::DeviceLog,
+            13 => PlayerAttributeTag::SupportedLanguages,
             _ => bail!("tag index not supported"),
         };
         Ok(tag)
@@ -242,6 +246,7 @@ impl PlayerAttributeTag {
             PlayerAttributeTag::AudioVolume => 10,
             PlayerAttributeTag::BuildInfo => 11,
             PlayerAttributeTag::DeviceLog => 12,
+            PlayerAttributeTag::SupportedLanguages => 13,
         };
         wtr.write_u32::<LittleEndian>(tag_index).unwrap();
     }
@@ -408,6 +413,14 @@ impl PlayerAttribute {
                     stack_trace,
                 }
             }
+            PlayerAttributeTag::SupportedLanguages => {
+                let count = rdr.read_u32::<LittleEndian>()? as usize;
+                let mut tags = Vec::with_capacity(count);
+                for _ in 0..count {
+                    tags.push(read_boxed_str(rdr).to_string());
+                }
+                PlayerAttribute::SupportedLanguages(tags)
+            }
         };
 
         Ok(msg)
@@ -493,6 +506,13 @@ impl PlayerAttribute {
                 wtr.write_u8(*level).unwrap();
                 write_str(message, wtr);
                 write_str(stack_trace, wtr);
+            }
+            PlayerAttribute::SupportedLanguages(tags) => {
+                wtr.write_u32::<LittleEndian>(13).unwrap();
+                wtr.write_u32::<LittleEndian>(tags.len() as u32).unwrap();
+                for tag in tags {
+                    write_str(tag, wtr);
+                }
             }
         }
     }
