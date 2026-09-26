@@ -8,44 +8,27 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use crate::color::Color;
 
-#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize)]
-pub enum Language {
-    #[serde(rename = "en-GB")]
-    EnGB,
-    #[serde(rename = "da-DK")]
-    DaDK,
-    #[serde(rename = "de-DE")]
-    DeDE,
-}
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
+pub struct Language(String);
 
 impl Language {
-    pub fn as_bcp47(self) -> &'static str {
-        match self {
-            Language::EnGB => "en-GB",
-            Language::DaDK => "da-DK",
-            Language::DeDE => "de-DE",
-        }
+    pub fn as_bcp47(&self) -> &str {
+        &self.0
     }
 
     pub fn from_bcp47(s: &str) -> Result<Language, String> {
-        match s {
-            "en-GB" | "EnGB" => Ok(Language::EnGB),
-            "da-DK" | "DaDK" => Ok(Language::DaDK),
-            "de-DE" | "DeDE" => Ok(Language::DeDE),
-            _ => Err(format!("unsupported language tag: {s}")),
+        let tag = s.trim().replace('_', "-");
+        if tag.is_empty() || !tag.chars().next().is_some_and(|c| c.is_ascii_alphabetic()) {
+            return Err(format!("invalid language tag: {s}"));
         }
+        Ok(Language(tag))
     }
 }
 
-// Custom Deserialize: accepts BCP 47 tags and legacy variant names,
-// so persisted data written before the BCP 47 switch still loads.
-impl<'de> serde::Deserialize<'de> for Language {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        Language::from_bcp47(&s).map_err(serde::de::Error::custom)
+impl Default for Language {
+    fn default() -> Self {
+        Language::from_bcp47("en-GB").expect("default language tag is valid")
     }
 }
 
@@ -315,10 +298,8 @@ impl PlayerAttribute {
             }
             PlayerAttributeTag::Language => {
                 let tag = read_boxed_str(rdr);
-                let language = match Language::from_bcp47(&tag) {
-                    Ok(language) => language,
-                    Err(_) => bail!("unsupported language tag: {tag}"),
-                };
+                let language = Language::from_bcp47(&tag)
+                    .map_err(|error| anyhow::anyhow!(error))?;
                 PlayerAttribute::Language(language)
             }
             PlayerAttributeTag::EnvironmentCode => {

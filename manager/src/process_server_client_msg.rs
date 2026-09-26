@@ -37,7 +37,7 @@ pub async fn process_player_attribute(
             let headset = context.status.headsets.get_mut(&device_id).unwrap();
             headset.temp.connection_status = ConnectionStatus::Connected(sender);
             let color = headset.persistent.color;
-            let language = headset.persistent.language;
+            let language = headset.persistent.language.clone();
             let environment_name = headset.persistent.environment_name.clone();
             let environment_data = context.get_environment_data(&environment_name);
             context.connection_id_to_player.insert(sender, device_id);

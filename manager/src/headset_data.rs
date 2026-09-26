@@ -40,7 +40,7 @@ impl PersistentHeadsetData {
                 b: 0.0,
                 a: 0.0,
             },
-            language: Language::EnGB,
+            language: Language::default(),
             environment_name: DEFAULT_ENVIRONMENT_NAME.into(),
         }
     }

@@ -243,7 +243,7 @@ pub async fn process_client_msg(
                 .headsets
                 .get_mut(&unique_device_id)
                 .context("could not find headset with id {unique_device_id}")?;
-            headset.persistent.language = language;
+            headset.persistent.language = language.clone();
             if let ConnectionStatus::Connected(session_id) = headset.temp.connection_status {
                 let msg = InterClientMsg::PlayerData(PlayerDataMsg::Set(
                     PlayerAttribute::Language(language),
